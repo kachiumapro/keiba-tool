@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競馬ラボ データ整形ツール v19</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--g1:#1a6b3a;--g2:#2a8a4e;--g3:#e8f5ec;--g4:#d0ecd8;--gold:#c8a84b;--gold3:#fff8e6;--white:#fff;--off:#f7f9f7;--bd:#c8dfc8;--tx:#1a2e1a;--tx2:#3a5a3a;--tx3:#6a8a6a}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:#f0f4f0;min-height:100vh;padding:1rem}
+.wrap{max-width:1100px;margin:0 auto}
+.header{background:linear-gradient(135deg,var(--g1),var(--g2));border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:12px}
+.hicon{width:40px;height:40px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.htitle{color:#fff;font-size:17px;font-weight:500}
+.hsub{color:rgba(255,255,255,.75);font-size:12px;margin-top:2px}
+.card{background:var(--white);border:1px solid var(--bd);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:.9rem;box-shadow:0 1px 4px rgba(26,107,58,.06)}
+.sec-title{font-size:11px;font-weight:500;color:var(--g1);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.85rem;display:flex;align-items:center;gap:6px}
+.sec-title::before{content:'';width:3px;height:13px;background:var(--gold);border-radius:2px;display:inline-block}
+.hint{background:var(--g3);border:1px solid var(--g4);border-radius:8px;padding:.8rem 1rem;margin-bottom:1rem}
+.hint p{font-size:13px;color:var(--tx2);font-weight:500;margin-bottom:.3rem}
+.hint ol{margin-left:1.4rem}
+.hint li{font-size:13px;color:var(--tx2);line-height:2.1}
+.hint strong{color:var(--g1)}
+textarea{width:100%;font-size:12px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--off);color:var(--tx);font-family:monospace;line-height:1.5;resize:vertical}
+.btn-main{background:linear-gradient(135deg,var(--g1),var(--g2));border:none;border-radius:8px;padding:11px;font-size:15px;font-weight:500;color:#fff;cursor:pointer;display:block;width:100%;margin-top:.8rem}
+.btn-main:hover{opacity:.9}
+.btn-copy{background:var(--gold3);border:1px solid var(--gold);border-radius:8px;padding:9px 20px;font-size:13px;font-weight:500;color:#7a5a00;cursor:pointer;margin-top:.8rem;width:100%}
+.btn-copy:hover{opacity:.9}
+.btn-copy.done{background:#e8f5ec;border-color:var(--g4);color:var(--g1)}
+.pmsg{font-size:12px;padding:7px 10px;border-radius:6px;margin-top:8px;display:none}
+.ok{background:#e8f5ec;color:var(--g1);border:1px solid var(--g4)}
+.err{background:#fce8e8;color:#a00;border:1px solid #f0c0c0}
+.rw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rt{width:100%;border-collapse:collapse;font-size:11px}
+.rt th{background:var(--g1);color:#fff;padding:6px 5px;text-align:center;border:1px solid var(--g2);font-weight:500;white-space:nowrap}
+.rt td{padding:5px 5px;border:1px solid var(--g4);text-align:center;color:var(--tx);white-space:nowrap}
+.rt tr:nth-child(even) td{background:var(--g3)}
+.rt th.grp{background:#0f4a26;font-size:10px}
+.ut{background:#1a2e1a;color:#a8e6be;font-family:monospace;font-size:11px;padding:1rem;border-radius:8px;white-space:pre;overflow-x:auto;line-height:1.8;margin-top:.5rem}
+.sb{display:inline-block;background:var(--g1);color:#fff;font-size:11px;padding:2px 10px;border-radius:10px;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+  <div class="hicon">📋</div>
+  <div>
+    <div class="htitle">競馬ラボ データ整形ツール v19</div>
+    <div class="hsub">全項目対応 / 18頭対応 / 貼り付けるだけで整形 / 配布用テキスト自動生成</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-title"><span class="sb">STEP 1</span> 競馬ラボ データ貼り付け</div>
+  <div class="hint">
+    <p>【手順】</p>
+    <ol>
+      <li>競馬ラボで対象レースの出馬表ページを開く</li>
+      <li><strong>Ctrl+A（全選択）→ Ctrl+C（コピー）</strong></li>
+      <li>下に <strong>Ctrl+V（貼り付け）</strong> して「整形する」を押す</li>
+    </ol>
+  </div>
+  <textarea id="raw" rows="10" placeholder="競馬ラボの出馬表をここにまるごと貼り付けてください..."></textarea>
+  <button class="btn-main" onclick="doFormat()">📊 整形する</button>
+  <div class="pmsg" id="pmsg"></div>
+</div>
+
+<div id="step2" style="display:none">
+  <div class="card">
+    <div class="sec-title"><span class="sb">STEP 2</span> 整形結果確認</div>
+    <p style="font-size:12px;color:var(--tx3);margin-bottom:.7rem">読み込んだデータを確認してください。「－」は取得できなかった項目です。</p>
+    <div class="rw"><table class="rt" id="rt"></table></div>
+  </div>
+  <div class="card">
+    <div class="sec-title"><span class="sb">STEP 3</span> 配布用テキスト</div>
+    <p style="font-size:12px;color:var(--tx3);margin-bottom:.7rem">このテキストをLINE・Discord等に貼り付けて配布してください。</p>
+    <div class="ut" id="ut"></div>
+    <button class="btn-copy" id="cb" onclick="copyText()">📋 配布用テキストをコピー</button>
+  </div>
+</div>
+</div>
+
+<script>
+function parseStat(val) {
+  // "1-" → 1, "0" → 0
+  if(!val) return 0;
+  return parseInt(val.replace('-','')) || 0;
+}
+
+function fmtStat(w,p2,p3,l) {
+  return w+'-'+p2+'-'+p3+'-'+l;
+}
+
+function doFormat(){
+  const raw = document.getElementById('raw').value;
+  if(!raw.trim()){showMsg('データを貼り付けてください', false); return;}
+
+  const rawLines = raw.split('\n');
+  const rf = rawLines.filter(l => l.trim().length > 0);
+  const lines = rf.map(l => l.trim());
+  const indented = rf.map(l => /^[\s　]/.test(l));
+
+  // レース名
+  let raceName = 'レース';
+  for(let i = 0; i < Math.min(5, lines.length); i++){
+    if(/^[\u3040-\u30FF\u4E00-\u9FFF]/.test(lines[i]) && lines[i].length >= 3
+      && !lines[i].includes('牝') && !lines[i].includes('牡') && !lines[i].includes('印')){
+      raceName = lines[i]; break;
+    }
+  }
+
+  // 展開マップ
+  const depMap = {};
+  let depSec = false, curDep = '中団';
+  for(let i = 0; i < lines.length; i++){
+    if(lines[i].includes('展開予想図')) depSec = true;
+    if(!depSec) continue;
+    if(lines[i] === '逃げ'){curDep='逃げ'; continue;}
+    if(lines[i] === '先行'){curDep='先行'; continue;}
+    if(lines[i] === '中団'){curDep='中団'; continue;}
+    if(lines[i] === '後方'){curDep='後方'; continue;}
+    if(/^\d{1,2}$/.test(lines[i]) && parseInt(lines[i]) >= 1 && parseInt(lines[i]) <= 18)
+      depMap[parseInt(lines[i])] = curDep;
+    if(lines[i].includes('データ上位評価')) break;
+  }
+
+  const horses = [];
+
+  for(let i = 0; i < lines.length - 2; i++){
+    const isSerial = /^\d+$/.test(lines[i]) && parseInt(lines[i]) >= 0;
+    const isNum = /^\d{1,2}$/.test(lines[i+1]) && parseInt(lines[i+1]) >= 1 && parseInt(lines[i+1]) <= 18;
+    const isShort = /^[\u3040-\u30FF\u4E00-\u9FFF]{2,8}$/.test(lines[i+2])
+      && !lines[i+2].includes('%') && !lines[i+2].includes('kg');
+
+    if(!isSerial || !isNum || !isShort) continue;
+
+    const num = parseInt(lines[i+1]);
+    if(horses.find(h => h.num === num)) continue;
+
+    let j = i + 2;
+
+    // 略称
+    j++; // skip shortname
+
+    // フル馬名（2文字馬名対応）
+    let nameFull = lines[i+2];
+    if(j < lines.length && !indented[j]
+      && /^[\u3040-\u30FF\u4E00-\u9FFFa-zA-Z]/.test(lines[j])
+      && lines[j].length >= 2
+      && !lines[j].includes('牝') && !lines[j].includes('牡')
+      && !lines[j].includes('セ') && !/^\d/.test(lines[j])
+      && !lines[j].includes('%') && !lines[j].includes('週')
+      && !lines[j].includes('出走')){
+      nameFull = lines[j]; j++;
+    }
+
+    // 性齢スキップ
+    while(j < lines.length && (lines[j].includes('牝') || lines[j].includes('牡')
+      || lines[j].includes('◀') || lines[j].includes('◁'))) j++;
+
+    // 父名（インデントあり）
+    let father = '－';
+    if(j < lines.length && indented[j]){
+      father = lines[j].split(/[\s\t]/)[0]; j++;
+    }
+
+    // 母名スキップ（インデントあり）
+    if(j < lines.length && indented[j]) j++;
+
+    // 母父スキップ
+    if(j < lines.length && /^\(/.test(lines[j])) j++;
+
+    // 人気・オッズ・体重スキップ
+    while(j < lines.length && (lines[j].includes('人気') || lines[j].includes('倍')
+      || /^-+$/.test(lines[j]) || lines[j].includes('---'))) j++;
+    while(j < lines.length && lines[j].endsWith('kg')) j++;
+    while(j < lines.length && lines[j].startsWith('(') && lines[j].includes('kg')) j++;
+
+    // 騎手
+    let jockey = '－';
+    if(j < lines.length
+      && /^[☆▲△◇★◎○●]?[\u3040-\u30FF\u4E00-\u9FFFa-zA-Z]/.test(lines[j])
+      && !lines[j].includes('%') && !lines[j].includes('kg')
+      && !lines[j].startsWith('栗') && !lines[j].startsWith('美')
+      && lines[j].length <= 14){
+      jockey = lines[j].replace(/^[☆▲△◇★◎○●]/, '').trim(); j++;
+    }
+
+    // 斤量スキップ
+    if(j < lines.length && /^\d{2}\.\d$/.test(lines[j])) j++;
+
+    // 厩舎スキップ
+    if(j < lines.length && (lines[j].startsWith('栗') || lines[j].startsWith('美'))) j++;
+
+    // ローテーション（初出走対応）
+    let interval = '－';
+    if(j < lines.length && (lines[j].includes('週') || lines[j].includes('初出走') || lines[j].includes('出走'))){
+      if(lines[j].includes('初出走') || lines[j].includes('出走')) {
+        interval = '初出走';
+      } else {
+        const m = lines[j].match(/中(\d+)週/);
+        if(m) interval = '中' + m[1] + '週';
+      }
+      j++;
+    }
+
+    // 馬主・勝負服・生産者スキップ
+    let skip = 0;
+    while(j < lines.length && skip < 5){
+      const l = lines[j];
+      if(l.includes('%')) break;
+      if(/^\d{1,2}$/.test(l) && parseInt(l) >= 1 && parseInt(l) <= 18) break;
+      if(l.length <= 12 && !/\d{2}\/\d/.test(l)) { j++; skip++; }
+      else break;
+    }
+
+    // ===== 連対率4項目 =====
+    let jkRate = '－', numRate = '－', fatherRate = '－', combiRate = '－';
+    while(j < lines.length && lines[j].includes('%')){
+      const l = lines[j];
+      if(l.includes('騎手：')){const m=l.match(/騎手：\s*([\d.]+)%/); if(m) jkRate=m[1]+'%';}
+      if(l.includes('馬番：')){const m=l.match(/馬番：\s*([\d.]+)%/); if(m) numRate=m[1]+'%';}
+      if(l.includes('父馬：')){const m=l.match(/父馬：\s*([\d.]+)%/); if(m) fatherRate=m[1]+'%';}
+      if(l.includes('コンビ：')){const m=l.match(/コンビ：\s*([\d.]+)%/); if(m) combiRate=m[1]+'%';}
+      j++;
+    }
+
+    // ===== 成績テーブル取得 =====
+    // 距離別: 千六・二〇・二二・当該
+    // コース別: 全・全右・東芝・中芝
+    // 馬場別: 芝良・芝稍・芝重・芝不
+    const statMap = {};
+    const sw = ['千','千二','千四','千六','千八','二〇','二二','当該','全右','全左','全','東芝','東ダ','中芝','中ダ','小芝','小ダ','名芝','名ダ','阪芝','阪ダ','京芝','京ダ','福芝','福ダ','新芝','新ダ','中京芝','中京ダ','札芝','札ダ','函芝','函ダ','芝良','芝稍','芝重','芝不','ダ良','ダ稍','ダ重','ダ不','全障','京障','阪障','中障','東障','小障','新障','福障','函障','札障'];
+    while(j < lines.length && (sw.some(w => lines[j].startsWith(w)) || /^0-	/.test(lines[j]) || /^[千二三当全東中小名阪京福新札函ダ芝].+	/.test(lines[j]) || /^千	/.test(lines[j]))){
+      const parts = lines[j].split('\t');
+      const key = parts[0];
+      const vals = parts.slice(1).map(v => parseInt(v.replace('-','')) || 0);
+      statMap[key] = vals; // [1着, 2着, 3着, 着外]
+      j++;
+    }
+
+    // 成績データはstatMapに保存済み（動的テーブル生成で使用）
+
+    // Ω指数スキップ（タブ付き・種牡馬名付き・初出走後の種牡馬行に対応）
+    if(j < lines.length && /^\d{1,3}(\t.*)?$/.test(lines[j]) && /^\d/.test(lines[j])) j++;
+
+    // ===== 前走データ取得 =====
+    const prevRaces = [];
+    while(j < lines.length && prevRaces.length < 5){
+      // 除外レースをスキップ
+      if(lines[j] === '除' || lines[j] === '取消' || lines[j] === '中止' || lines[j] === '消' || lines[j] === '失' || lines[j] === '止' || lines[j] === '降' || lines[j] === '再'){
+        j++;
+        // 除外レースの情報行・隊列・タイム・着差をスキップ
+        if(j < lines.length && /\d{2}\/\d+\/\d+/.test(lines[j])) j++; // レース情報
+        if(j < lines.length && !/^\d:\d/.test(lines[j]) && !/[①-⑱]/.test(lines[j]) && !/^\d{1,2}$/.test(lines[j]) && lines[j] !== '除' && !/\d{2}\/\d+\/\d+/.test(lines[j])) j++; // レース名
+        if(j < lines.length && /[①-⑱－]/.test(lines[j]) && lines[j].includes('頭')) j++; // 隊列
+        if(j < lines.length && (/^\d:\d{2}\.\d/.test(lines[j]) || lines[j].startsWith('-:-'))) j++; // タイム
+        if(j < lines.length && lines[j].includes('(') && lines[j].includes(')')) j++; // 着差
+        continue;
+      }
+      if(!(/^\d{1,2}$/.test(lines[j]) && parseInt(lines[j]) >= 1 && parseInt(lines[j]) <= 18)) break;
+      // 着順の次がレース情報行か先読み確認（誤検出防止）
+      if(j+1 >= lines.length || !/\d{2}\/\d+\/\d+/.test(lines[j+1])) break;
+      const result = parseInt(lines[j]); j++;
+
+      if(j >= lines.length || !/\d{2}\/\d+\/\d+/.test(lines[j])) break;
+      const raceInfo = lines[j]; j++;
+
+      // レース名行スキップ
+      if(j < lines.length && !/^\d:\d/.test(lines[j])
+        && !/[①-⑱]/.test(lines[j])
+        && !/^\d{1,2}$/.test(lines[j])
+        && !/\d{2}\/\d+\/\d+/.test(lines[j])){
+        j++;
+      }
+
+      // 隊列行スキップ
+      if(j < lines.length && /[①-⑱－]/.test(lines[j]) && lines[j].includes('頭')) j++;
+
+      // タイム行
+      if(j >= lines.length || (!/^\d:\d{2}\.\d/.test(lines[j]) && !lines[j].startsWith('-:-'))) break;
+      const tl = lines[j]; j++;
+      const parts = tl.split(/\s+/);
+      const agRaw = parts.length >= 2 ? parts[1] : '--.-';
+      const ag = /^\d{2}\.\d$/.test(agRaw) ? agRaw : '－';
+      const lapRaw = parts.length >= 3 ? parts[2] : '';
+      const lap = lapRaw==='S'?'スロー':lapRaw==='H'?'ハイ':lapRaw==='M'?'ミドル':'－';
+
+      // 着差行
+      let diff = '－';
+      if(j < lines.length && lines[j].includes('(') && lines[j].includes(')')){
+        const dm = lines[j].match(/\(([^)]+)\)\s*$/);
+        if(dm){
+          const v = dm[1].replace('＋','+').replace('－','-');
+          if(v.includes('-') || v.includes('+') || /^\d/.test(v)){
+            const f = parseFloat(v);
+            if(!isNaN(f)) diff = f===0?'0.0':f<0?String(f):'+'+f.toFixed(1);
+            else diff = v;
+          } else diff = '0.0';
+        }
+        j++;
+      }
+
+      // コース・距離抽出
+      const courseM = raceInfo.match(/[芝ダ障](\d+)/);
+      const raceKm = courseM ? courseM[1]+'m' : '－';
+      const racePlace = raceInfo.match(/[東京阪神中山京都小倉福島新潟中京札幌函館]/)?.[0] || '－';
+
+      prevRaces.push({result, ag, lap, diff, raceKm, racePlace});
+    }
+
+    const p1 = prevRaces[0] || {result:'－', ag:'－', lap:'－', diff:'－', raceKm:'－', racePlace:'－'};
+    const p2 = prevRaces[1] || {ag:'－', lap:'－', diff:'－'};
+    const p3 = prevRaces[2] || {ag:'－', lap:'－'};
+    const p4 = prevRaces[3] || {ag:'－', lap:'－'};
+    const p5 = prevRaces[4] || {ag:'－', lap:'－'};
+
+    horses.push({
+      num, nameFull, father, jockey, interval,
+      deploy: depMap[num] || '－',
+      jkRate, numRate, fatherRate, combiRate,
+      statMap,
+      p1_result: p1.result==='－'?'－':p1.result+'着',
+      p1_ag: p1.ag, p1_lap: p1.lap, p1_diff: p1.diff,
+      p1_km: p1.raceKm, p1_place: p1.racePlace,
+      p2_ag: p2.ag, p2_lap: p2.lap, p2_diff: p2.diff,
+      p3_ag: p3.ag, p3_lap: p3.lap,
+      p4_ag: p4.ag, p4_lap: p4.lap,
+      p5_ag: p5.ag, p5_lap: p5.lap,
+      prevCount: prevRaces.length
+    });
+
+    i = j - 1;
+  }
+
+  if(horses.length === 0){
+    showMsg('馬データを検出できませんでした。競馬ラボの出馬表ページをCtrl+A→Ctrl+Cでコピーして貼り付けてください。', false);
+    return;
+  }
+  horses.sort((a, b) => a.num - b.num);
+
+  // ===== 動的テーブル生成 =====
+  // 全馬のstatMapから出現した全キーを収集
+  const distKeys = ['当該','全'];   // 固定優先表示キー
+  const courseKeys = [];
+  // 馬場別成績キーを動的収集
+  const BABA_KEYS_ALL = ['芝良','芝稍','芝重','芝不','ダ良','ダ稍','ダ重','ダ不'];
+  const babaSet = new Set();
+  horses.forEach(h => {
+    BABA_KEYS_ALL.forEach(k => { if(h.statMap && h.statMap[k]) babaSet.add(k); });
+  });
+  const babaKeys = BABA_KEYS_ALL.filter(k => babaSet.has(k));
+  const babaColspan = babaKeys.length || 4;
+
+  // 全馬のstatMapをスキャンして動的にキーを収集
+  const distSet = new Set(['当該','全']);
+  const courseSet = new Set();
+  const DIST_PREFIXES = ['千','二','三','一'];
+  const COURSE_PREFIXES = ['東芝','東ダ','中芝','中ダ','全右','全左','小芝','小ダ','名芝','名ダ','阪芝','阪ダ','京芝','京ダ','福芝','福ダ','新芝','新ダ','札芝','札ダ','函芝','函ダ','中京芝','中京ダ','全障','京障','阪障','中障','東障','小障','新障','福障','函障','札障'];
+
+  horses.forEach(h => {
+    Object.keys(h.statMap || {}).forEach(k => {
+      if(DIST_PREFIXES.some(p => k.startsWith(p))) distSet.add(k);
+      if(COURSE_PREFIXES.some(p => k.startsWith(p)) || k === '全右' || k === '全左') courseSet.add(k);
+    });
+  });
+
+  // 距離キーを論理順にソート
+  const distOrder = {'千二':1,'千四':2,'千六':3,'千八':4,'二〇':5,'二二':6,'二四':7,'二五':8,'二六':9,'三〇':10,'三二':11,'三六':12,'当該':0,'全':99};
+  const allDistKeys = [...distSet].sort((a,b) => (distOrder[a]??50) - (distOrder[b]??50));
+
+  // コースキーを論理順にソート
+  const courseOrder = {'全右':1,'全左':2,'東芝':3,'中芝':4,'名芝':5,'小芝':6,'阪芝':7,'京芝':8,'福芝':9,'新芝':10,'札芝':11,'函芝':12};
+  const allCourseKeys = [...courseSet].sort((a,b) => (courseOrder[a]??50) - (courseOrder[b]??50));
+
+  // ヘッダー生成
+  const distColspan = allDistKeys.length;
+  const courseColspan = allCourseKeys.length || 1;
+
+  let thead = `<tr>
+    <th rowspan="2">馬番</th><th rowspan="2">馬名</th><th rowspan="2">父</th>
+    <th rowspan="2">騎手</th><th rowspan="2">脚質</th><th rowspan="2">間隔</th>
+    <th class="grp" colspan="4">連対率</th>
+    <th class="grp" colspan="${distColspan}">距離別成績(1-2-3-着外)</th>
+    <th class="grp" colspan="${courseColspan}">コース別成績</th>
+    <th class="grp" colspan="${babaColspan}">馬場別成績</th> <th class="grp" colspan="5">前走</th>
+    <th class="grp" colspan="2">2走前</th>
+    <th class="grp" colspan="2">3走前</th>
+    <th class="grp" colspan="2">4走前</th>
+    <th class="grp" colspan="2">5走前</th>
+    <th rowspan="2">取得</th>
+  </tr><tr>
+    <th>騎手</th><th>馬番</th><th>父馬</th><th>コンビ</th>
+    ${allDistKeys.map(k=>`<th>${k}</th>`).join('')}
+    ${allCourseKeys.map(k=>`<th>${k}</th>`).join('')}
+    ${babaKeys.map(k=>`<th>${k}</th>`).join('')}
+    <th>着順</th><th>上がり</th><th>ラップ</th><th>着差</th><th>距離</th>
+    <th>上がり</th><th>ラップ</th>
+    <th>上がり</th><th>ラップ</th>
+    <th>上がり</th><th>ラップ</th>
+    <th>上がり</th><th>ラップ</th>
+  </tr>`;
+
+  // データ行生成
+  const tbody = horses.map(h => {
+    const sm = h.statMap || {};
+    const distCells = allDistKeys.map(k => `<td>${sm[k] ? fmtStat(...sm[k]) : '－'}</td>`).join('');
+    const courseCells = allCourseKeys.map(k => `<td>${sm[k] ? fmtStat(...sm[k]) : '－'}</td>`).join('');
+    return `<tr>
+      <td><strong>${h.num}</strong></td>
+      <td style="text-align:left;font-weight:500">${h.nameFull}</td>
+      <td style="text-align:left">${h.father}</td>
+      <td style="text-align:left">${h.jockey}</td>
+      <td>${h.deploy}</td><td>${h.interval}</td>
+      <td>${h.jkRate}</td><td>${h.numRate}</td><td>${h.fatherRate}</td><td>${h.combiRate}</td>
+      ${distCells}
+      ${courseCells}
+      ${babaKeys.map(k=>`<td>${sm[k] ? fmtStat(...sm[k]) : '－'}</td>`).join('')}
+      <td>${h.p1_result}</td><td>${h.p1_ag}</td><td>${h.p1_lap}</td><td>${h.p1_diff}</td><td>${h.p1_km}</td>
+      <td>${h.p2_ag}</td><td>${h.p2_lap}</td>
+      <td>${h.p3_ag}</td><td>${h.p3_lap}</td>
+      <td>${h.p4_ag}</td><td>${h.p4_lap}</td>
+      <td>${h.p5_ag}</td><td>${h.p5_lap}</td>
+      <td>${h.prevCount}走</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('rt').innerHTML = thead + tbody;
+
+  // 配布用テキスト生成
+  const now = new Date();
+  const ds = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+  const pad = (s, n) => (String(s||'－')+'                ').slice(0, n);
+
+  let txt = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  txt += '🐎 ' + raceName + '\n';
+  txt += '📅 ' + ds + ' ／ 予想ツール用データ\n';
+  txt += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+
+  horses.forEach(h => {
+    txt += '─────────────────────────────\n';
+    txt += `【${h.num}番】${h.nameFull}　父:${h.father}　${h.jockey}騎手　${h.deploy}　${h.interval}\n`;
+    txt += `  連対率 ▶ 騎手:${h.jkRate} 馬番:${h.numRate} 父馬:${h.fatherRate} コンビ:${h.combiRate}\n`;
+    // 距離別成績（動的）
+    const smh = h.statMap || {};
+    const distEntries = Object.entries(smh).filter(([k]) => ['千','二','三','一'].some(p=>k.startsWith(p))||k==='当該'||k==='全');
+    if(distEntries.length > 0) txt += `  距離別 ▶ ` + distEntries.map(([k,v])=>`${k}:${fmtStat(...v)}`).join(' ') + '\n';
+    // コース別成績（動的）
+    const courseEntries = Object.entries(smh).filter(([k]) => ['東芝','中芝','全右','全左','小芝','名芝','阪芝','京芝','福芝','新芝','札芝','函芝'].some(p=>k.startsWith(p)));
+    if(courseEntries.length > 0) txt += `  コース ▶ ` + courseEntries.map(([k,v])=>`${k}:${fmtStat(...v)}`).join(' ') + '\n';
+    const babaEntries = BABA_KEYS_ALL.filter(k => smh[k]).map(k => `${k}:${fmtStat(...smh[k])}`);
+    if(babaEntries.length > 0) txt += `  馬場別 ▶ ` + babaEntries.join(' ') + '\n';
+    if(h.prevCount > 0){
+      txt += `  前走   ▶ ${h.p1_result} 上がり:${h.p1_ag} ラップ:${h.p1_lap} 着差:${h.p1_diff} 距離:${h.p1_km}\n`;
+    }
+    if(h.prevCount > 1) txt += `  2走前  ▶ 上がり:${h.p2_ag} ラップ:${h.p2_lap} 着差:${h.p2_diff}\n`;
+    if(h.prevCount > 2) txt += `  3走前  ▶ 上がり:${h.p3_ag} ラップ:${h.p3_lap}\n`;
+    if(h.prevCount > 3) txt += `  4走前  ▶ 上がり:${h.p4_ag} ラップ:${h.p4_lap}\n`;
+    if(h.prevCount > 4) txt += `  5走前  ▶ 上がり:${h.p5_ag} ラップ:${h.p5_lap}\n`;
+  });
+
+  txt += '─────────────────────────────\n\n';
+  txt += '【展開予想】\n';
+  ['逃げ','先行','中団','後方'].forEach(d => {
+    const list = horses.filter(h => h.deploy === d);
+    if(list.length > 0) txt += d + '：' + list.map(h => h.num+'番'+h.nameFull).join('、') + '\n';
+  });
+  txt += '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  txt += '※このデータを予想ツールに貼り付けてご利用ください';
+
+  document.getElementById('ut').textContent = txt;
+  showMsg('✓ ' + horses.length + '頭のデータを整形しました！', true);
+  document.getElementById('step2').style.display = '';
+  document.getElementById('step2').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function copyText(){
+  navigator.clipboard.writeText(document.getElementById('ut').textContent).then(() => {
+    const b = document.getElementById('cb');
+    b.textContent = '✓ コピーしました！'; b.classList.add('done');
+    setTimeout(() => {b.textContent = '📋 配布用テキストをコピー'; b.classList.remove('done');}, 2000);
+  });
+}
+function showMsg(t, ok){
+  const el = document.getElementById('pmsg');
+  el.style.display = 'block';
+  el.className = 'pmsg ' + (ok ? 'ok' : 'err');
+  el.textContent = t;
+}
+</script>
+</body>
+</html>
