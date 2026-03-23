@@ -252,16 +252,25 @@ function parseText() {
   if (!text) { alert('テキストを貼り付けてください'); return; }
 
   parsedRaces = [];
-  // 複数レースに対応：━━で区切る
-  const blocks = text.split(/━+/).filter(b => b.trim());
+  // 🐎 で始まるブロックを抽出（━━区切りではなく🐎単位で処理）
+  const raceChunks = [];
+  const allLines = text.split('\n');
+  let chunk = [];
+  for(const line of allLines){
+    if(line.includes('🐎') && chunk.length > 0){
+      raceChunks.push(chunk.join('\n'));
+      chunk = [];
+    }
+    chunk.push(line);
+  }
+  if(chunk.length) raceChunks.push(chunk.join('\n'));
 
-  for (const block of blocks) {
+  for (const block of raceChunks) {
     const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length < 3) continue;
+    if (!lines.some(l => l.includes('🐎'))) continue;
 
     // レース名・日付・競馬場・レース番号の抽出
-    // 🐎 阪神11R 阪神大賞G2　2026/3/23
-    let raceLine = lines.find(l => l.includes('R ') || l.startsWith('🐎'));
+    let raceLine = lines.find(l => l.includes('🐎'));
     if (!raceLine) continue;
     raceLine = raceLine.replace('🐎', '').trim();
 
