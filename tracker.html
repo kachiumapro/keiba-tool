@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回収率トラッカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: #2a2a3a;
+    --accent: #e8b84b;
+    --accent2: #f0d080;
+    --red: #e85555;
+    --green: #4bc98a;
+    --text: #e8e8f0;
+    --text2: #9090a8;
+    --win: #4bc98a;
+    --lose: #e85555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a1428 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-icon { font-size: 28px; }
+  .header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* SUMMARY CARDS */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+  @media(min-width:600px){ .summary-grid { grid-template-columns: repeat(4, 1fr); } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.gold::before { background: var(--accent); }
+  .card.green::before { background: var(--green); }
+  .card.red::before { background: var(--red); }
+  .card.blue::before { background: #5588ff; }
+  .card-label { font-size: 11px; color: var(--text2); letter-spacing: 1px; margin-bottom: 6px; }
+  .card-value {
+    font-family: 'Oswald', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .card-value.positive { color: var(--green); }
+  .card-value.negative { color: var(--red); }
+  .card-value.neutral { color: var(--accent); }
+  .card-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--text2);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .2s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; padding: 0 16px; }
+  .tab-content.active { display: block; }
+
+  /* FORM */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .form-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media(min-width:600px){ .form-grid { grid-template-columns: repeat(3, 1fr); } }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 11px; color: var(--text2); letter-spacing: 0.5px; }
+  .form-group input, .form-group select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .result-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .result-btn {
+    flex: 1;
+    padding: 9px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .result-btn.hit.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .result-btn.miss.active { background: var(--red); border-color: var(--red); color: #fff; }
+  .add-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .add-btn:hover { opacity: .85; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--surface2); }
+  thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 1px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  tbody tr { border-top: 1px solid var(--border); transition: background .15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 10px 12px; white-space: nowrap; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge.hit { background: rgba(75,201,138,.15); color: var(--green); border: 1px solid rgba(75,201,138,.3); }
+  .badge.miss { background: rgba(232,85,85,.15); color: var(--red); border: 1px solid rgba(232,85,85,.3); }
+  .del-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .del-btn:hover { border-color: var(--red); color: var(--red); }
+  .profit.pos { color: var(--green); }
+  .profit.neg { color: var(--red); }
+
+  /* STATS */
+  .stats-section { margin-bottom: 20px; }
+  .stats-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  @media(min-width:600px){ .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+  .stats-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .stats-row-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .stats-row-vals { display: flex; gap: 10px; align-items: baseline; }
+  .stats-row-main {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .stats-row-sub { font-size: 11px; color: var(--text2); }
+
+  /* MONTH TABLE */
+  .month-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+
+  /* CSV BTN */
+  .csv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 14px;
+  }
+  .csv-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 14px;
+    margin-left: 8px;
+  }
+  .clear-btn:hover { border-color: var(--red); color: var(--red); }
+  .empty { text-align: center; padding: 40px; color: var(--text2); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏇</div>
+  <div>
+    <h1>回収率トラッカー</h1>
+    <div class="header-sub">競馬収支管理ツール</div>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary-grid">
+  <div class="card gold">
+    <div class="card-label">回収率</div>
+    <div class="card-value neutral" id="s-rate">－%</div>
+    <div class="card-sub" id="s-rate-sub">全期間</div>
+  </div>
+  <div class="card green">
+    <div class="card-label">収支合計</div>
+    <div class="card-value" id="s-profit">±0円</div>
+    <div class="card-sub" id="s-profit-sub">投資 / 払戻</div>
+  </div>
+  <div class="card blue">
+    <div class="card-label">的中率</div>
+    <div class="card-value neutral" id="s-hit">－%</div>
+    <div class="card-sub" id="s-hit-sub">0勝0敗</div>
+  </div>
+  <div class="card red">
+    <div class="card-label">レース数</div>
+    <div class="card-value neutral" id="s-count">0</div>
+    <div class="card-sub">記録済み</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('input')">📝 入力</button>
+  <button class="tab" onclick="switchTab('list')">📋 一覧</button>
+  <button class="tab" onclick="switchTab('stats')">📊 集計</button>
+</div>
+
+<!-- TAB: 入力 -->
+<div id="tab-input" class="tab-content active">
+  <div class="form-card">
+    <div class="form-title">⬛ レース記録を追加</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>日付</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>競馬場</label>
+        <select id="f-venue">
+          <option value="">選択</option>
+          <option>東京</option><option>中山</option><option>阪神</option><option>京都</option>
+          <option>中京</option><option>小倉</option><option>福島</option><option>新潟</option>
+          <option>函館</option><option>札幌</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>レース番号</label>
+        <select id="f-race-no">
+          <option value="">－</option>
+          <option>1R</option><option>2R</option><option>3R</option><option>4R</option>
+          <option>5R</option><option>6R</option><option>7R</option><option>8R</option>
+          <option>9R</option><option>10R</option><option>11R</option><option>12R</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>レース名</label>
+        <input type="text" id="f-name" placeholder="例：日本ダービー">
+      </div>
+      <div class="form-group">
+        <label>馬券種別</label>
+        <select id="f-type">
+          <option value="">選択</option>
+          <option>単勝</option><option>複勝</option><option>枠連</option>
+          <option>馬連</option><option>馬単</option><option>ワイド</option>
+          <option>3連複</option><option>3連単</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>買い目</label>
+        <input type="text" id="f-buy" placeholder="例：1-3">
+      </div>
+      <div class="form-group">
+        <label>投資金額（円）</label>
+        <input type="number" id="f-cost" placeholder="1000" min="0">
+      </div>
+      <div class="form-group">
+        <label>払戻金額（円）</label>
+        <input type="number" id="f-return" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>結果</label>
+        <div class="result-btns">
+          <button class="result-btn hit" id="btn-hit" onclick="setResult('hit')">✅ 的中</button>
+          <button class="result-btn miss" id="btn-miss" onclick="setResult('miss')">❌ 外れ</button>
+        </div>
+      </div>
+    </div>
+    <button class="add-btn" onclick="addRecord()">＋ 記録を追加</button>
+  </div>
+</div>
+
+<!-- TAB: 一覧 -->
+<div id="tab-list" class="tab-content">
+  <button class="csv-btn" onclick="exportCSV()">📥 CSVエクスポート</button>
+  <button class="clear-btn" onclick="clearAll()">🗑 全削除</button>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>日付</th><th>競馬場</th><th>R</th><th>レース名</th>
+          <th>馬券種</th><th>買い目</th><th>投資</th><th>払戻</th><th>収支</th><th>結果</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="records-body">
+        <tr><td colspan="11" class="empty">まだ記録がありません</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB: 集計 -->
+<div id="tab-stats" class="tab-content">
+  <div class="stats-section">
+    <div class="stats-title">馬券種別ごとの成績</div>
+    <div class="stats-grid" id="type-stats"></div>
+  </div>
+  <div class="stats-section">
+    <div class="stats-title">月別集計</div>
+    <div class="month-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>月</th><th>R数</th><th>的中</th><th>的中率</th><th>投資</th><th>払戻</th><th>収支</th><th>回収率</th>
+          </tr>
+        </thead>
+        <tbody id="month-body">
+          <tr><td colspan="8" class="empty">データなし</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let records = JSON.parse(localStorage.getItem('keiba_tracker') || '[]');
+let selectedResult = '';
+
+// 今日の日付をデフォルト設定
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+function setResult(r) {
+  selectedResult = r;
+  document.getElementById('btn-hit').classList.toggle('active', r === 'hit');
+  document.getElementById('btn-miss').classList.toggle('active', r === 'miss');
+  // 外れなら払戻を0に
+  if (r === 'miss') document.getElementById('f-return').value = 0;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'stats') renderStats();
+  if (name === 'list') renderTable();
+}
+
+function addRecord() {
+  const date = document.getElementById('f-date').value;
+  const venue = document.getElementById('f-venue').value;
+  const raceNo = document.getElementById('f-race-no').value;
+  const name = document.getElementById('f-name').value.trim();
+  const type = document.getElementById('f-type').value;
+  const buy = document.getElementById('f-buy').value.trim();
+  const cost = parseInt(document.getElementById('f-cost').value) || 0;
+  const ret = parseInt(document.getElementById('f-return').value) || 0;
+  const result = selectedResult;
+
+  if (!date || !type || !cost) {
+    alert('日付・馬券種別・投資金額は必須です');
+    return;
+  }
+
+  records.push({
+    id: Date.now(),
+    date, venue, raceNo, name, type, buy, cost, ret, result
+  });
+  save();
+  renderSummary();
+  renderTable();
+
+  // フォームリセット（日付はそのまま）
+  document.getElementById('f-venue').value = '';
+  document.getElementById('f-race-no').value = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-type').value = '';
+  document.getElementById('f-buy').value = '';
+  document.getElementById('f-cost').value = '';
+  document.getElementById('f-return').value = '';
+  selectedResult = '';
+  document.getElementById('btn-hit').classList.remove('active');
+  document.getElementById('btn-miss').classList.remove('active');
+}
+
+function deleteRecord(id) {
+  records = records.filter(r => r.id !== id);
+  save();
+  renderSummary();
+  renderTable();
+}
+
+function save() {
+  localStorage.setItem('keiba_tracker', JSON.stringify(records));
+}
+
+function fmt(n) {
+  return n.toLocaleString() + '円';
+}
+
+function fmtProfit(n) {
+  const s = (n >= 0 ? '+' : '') + n.toLocaleString() + '円';
+  return s;
+}
+
+function renderSummary() {
+  const total = records.length;
+  const totalCost = records.reduce((a, r) => a + r.cost, 0);
+  const totalRet = records.reduce((a, r) => a + r.ret, 0);
+  const profit = totalRet - totalCost;
+  const rate = totalCost > 0 ? Math.round(totalRet / totalCost * 100) : 0;
+  const hits = records.filter(r => r.result === 'hit').length;
+  const hitRate = total > 0 ? Math.round(hits / total * 100) : 0;
+
+  const rateEl = document.getElementById('s-rate');
+  rateEl.textContent = total > 0 ? rate + '%' : '－%';
+  rateEl.className = 'card-value ' + (rate >= 100 ? 'positive' : rate > 0 ? 'negative' : 'neutral');
+
+  const profitEl = document.getElementById('s-profit');
+  profitEl.textContent = fmtProfit(profit);
+  profitEl.className = 'card-value ' + (profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'neutral');
+  document.getElementById('s-profit-sub').textContent = fmt(totalCost) + ' / ' + fmt(totalRet);
+
+  document.getElementById('s-hit').textContent = total > 0 ? hitRate + '%' : '－%';
+  document.getElementById('s-hit-sub').textContent = hits + '勝' + (total - hits) + '敗';
+  document.getElementById('s-count').textContent = total;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('records-body');
+  if (records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty">まだ記録がありません</td></tr>';
+    return;
+  }
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(r => {
+    const profit = r.ret - r.cost;
+    const pClass = profit > 0 ? 'pos' : profit < 0 ? 'neg' : '';
+    const badge = r.result === 'hit'
+      ? '<span class="badge hit">的中</span>'
+      : r.result === 'miss'
+      ? '<span class="badge miss">外れ</span>'
+      : '－';
+    return `<tr>
+      <td>${r.date}</td>
+      <td>${r.venue || '－'}</td>
+      <td>${r.raceNo || '－'}</td>
+      <td>${r.name || '－'}</td>
+      <td>${r.type}</td>
+      <td>${r.buy || '－'}</td>
+      <td>${r.cost.toLocaleString()}</td>
+      <td>${r.ret.toLocaleString()}</td>
+      <td class="profit ${pClass}">${fmtProfit(profit)}</td>
+      <td>${badge}</td>
+      <td><button class="del-btn" onclick="deleteRecord(${r.id})">削除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats() {
+  // 馬券種別
+  const types = ['単勝','複勝','枠連','馬連','馬単','ワイド','3連複','3連単'];
+  const typeEl = document.getElementById('type-stats');
+  const rows = types.map(t => {
+    const recs = records.filter(r => r.type === t);
+    if (recs.length === 0) return null;
+    const cost = recs.reduce((a, r) => a + r.cost, 0);
+    const ret = recs.reduce((a, r) => a + r.ret, 0);
+    const hits = recs.filter(r => r.result === 'hit').length;
+    const rate = cost > 0 ? Math.round(ret / cost * 100) : 0;
+    const profit = ret - cost;
+    const pClass = profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'neutral';
+    return `<div class="stats-row">
+      <div class="stats-row-label">${t}（${recs.length}R / ${hits}的中）</div>
+      <div class="stats-row-vals">
+        <span class="stats-row-main ${pClass}">${rate}%</span>
+        <span class="stats-row-sub">${fmtProfit(profit)}</span>
+      </div>
+    </div>`;
+  }).filter(Boolean);
+  typeEl.innerHTML = rows.length ? rows.join('') : '<div style="color:var(--text2);font-size:13px;padding:10px;">データなし</div>';
+
+  // 月別
+  const monthMap = {};
+  records.forEach(r => {
+    const m = r.date.slice(0, 7);
+    if (!monthMap[m]) monthMap[m] = [];
+    monthMap[m].push(r);
+  });
+  const months = Object.keys(monthMap).sort().reverse();
+  const mbody = document.getElementById('month-body');
+  if (months.length === 0) {
+    mbody.innerHTML = '<tr><td colspan="8" class="empty">データなし</td></tr>';
+    return;
+  }
+  mbody.innerHTML = months.map(m => {
+    const recs = monthMap[m];
+    const cost = recs.reduce((a, r) => a + r.cost, 0);
+    const ret = recs.reduce((a, r) => a + r.ret, 0);
+    const hits = recs.filter(r => r.result === 'hit').length;
+    const rate = cost > 0 ? Math.round(ret / cost * 100) : 0;
+    const profit = ret - cost;
+    const hitRate = Math.round(hits / recs.length * 100);
+    const pClass = profit > 0 ? 'positive' : profit < 0 ? 'negative' : '';
+    return `<tr>
+      <td>${m}</td>
+      <td>${recs.length}</td>
+      <td>${hits}</td>
+      <td>${hitRate}%</td>
+      <td>${cost.toLocaleString()}</td>
+      <td>${ret.toLocaleString()}</td>
+      <td class="${pClass}">${fmtProfit(profit)}</td>
+      <td class="${pClass}">${rate}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCSV() {
+  if (records.length === 0) { alert('データがありません'); return; }
+  const header = ['日付','競馬場','レース番号','レース名','馬券種別','買い目','投資金額','払戻金額','収支','結果'];
+  const rows = records.map(r => [
+    r.date, r.venue, r.raceNo, r.name, r.type, r.buy,
+    r.cost, r.ret, r.ret - r.cost, r.result === 'hit' ? '的中' : r.result === 'miss' ? '外れ' : ''
+  ]);
+  const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '回収率トラッカー_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+function clearAll() {
+  if (!confirm('全データを削除しますか？この操作は元に戻せません。')) return;
+  records = [];
+  save();
+  renderSummary();
+  renderTable();
+}
+
+// 初期描画
+renderSummary();
+renderTable();
+</script>
+</body>
+</html>
