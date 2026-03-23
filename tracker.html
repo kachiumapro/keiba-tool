@@ -289,8 +289,8 @@ function parseText() {
       const betLines = betSection[1].split('\n').map(l => l.trim()).filter(Boolean);
       for (const bl of betLines) {
         if (bl === '見送り') continue;
-        // 例: 単勝　6 / 馬連　5-6 / 3連単　6→5→4
-        const bm = bl.match(/^(単勝|複勝|枠連|馬連|馬単|ワイド|3連複|3連単)\s+(.+)/);
+        // 例: 単勝　6 / 馬連　5-6 / 3連単　6→5→4（全角・半角スペース両対応）
+        const bm = bl.match(/^(単勝|複勝|枠連|馬連|馬単|ワイド|3連複|3連単)[\s　]+(.+)/);
         if (bm) {
           // スラッシュで複数買い目に分割
           const nums = bm[2].split('/').map(n => n.trim()).filter(Boolean);
