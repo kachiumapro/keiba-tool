@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競馬ラボPC出馬表整形ツール v5.7</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --bg2: #161b27;
+    --bg3: #1e2535;
+    --border: #2a3448;
+    --border2: #3d4f6e;
+    --text: #e8edf5;
+    --text2: #8a9bb8;
+    --text3: #5a6b88;
+    --accent: #3b82f6;
+    --accent2: #1d4ed8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; min-height: 100vh; }
+
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+  .header p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  textarea {
+    width: 100%;
+    height: 160px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 12px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--text3); }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+
+  button {
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); color: var(--text); }
+  .btn-copy { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); padding: 6px 14px; font-size: 12px; }
+  .btn-copy:hover { color: var(--green); border-color: var(--green); }
+  .btn-copy.copied { color: var(--green); border-color: var(--green); }
+
+  .err { color: var(--red); font-size: 13px; padding: 8px 0; white-space: pre-wrap; }
+
+  .info-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .badge {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .badge strong { color: var(--text); }
+  .badge.scratch { border-color: var(--yellow); color: var(--yellow); }
+
+  .tab-row {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+  .tab {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    border-radius: 0;
+    background: none;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .out-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    font-family: var(--mono);
+    white-space: pre-wrap;
+    max-height: 500px;
+    overflow-y: auto;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .out-box::-webkit-scrollbar { width: 6px; }
+  .out-box::-webkit-scrollbar-track { background: var(--bg2); }
+  .out-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .result-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+
+  .hint { font-size: 12px; color: var(--text3); margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏇</div>
+  <div>
+    <h1>競馬ラボPC出馬表整形ツール v5.7</h1>
+    <p>平地・障害・地方・除外/取消対応</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-title">入力</div>
+    <textarea id="inp" placeholder="競馬ラボの出馬表をドラッグ選択 → コピーして、ここに貼り付け（Ctrl+V）..."></textarea>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="run()">整形する</button>
+      <button class="btn-secondary" onclick="reset()">クリア</button>
+    </div>
+    <div id="err" class="err"></div>
+    <p class="hint">※ 競馬ラボの出馬表ページで馬柱エリア全体をドラッグ選択してコピーしてください。</p>
+  </div>
+
+  <div id="result-area" class="card" style="display:none">
+    <div class="info-bar" id="info-bar"></div>
+    <div class="result-top">
+      <div class="tab-row" id="tab-row">
+        <button class="tab active" onclick="switchTab(0)">構造化テキスト</button>
+        <button class="tab" onclick="switchTab(1)">CSV</button>
+        <button class="tab" onclick="switchTab(2)">TSV</button>
+        <button class="tab" onclick="switchTab(3)">JSON</button>
+      </div>
+      <button class="btn-copy" id="copy-btn" onclick="copyOut()">コピー</button>
+    </div>
+    <div class="out-box" id="out"></div>
+  </div>
+</div>
+
+<script>
+let horses=[],tabIdx=0,meta={};
+
+const SCRATCH_WORDS=new Set(['除外','競走除外','取消','出走取消','回避','競走回避']);
+const DIST_KEYS=new Set(['千','千二','千三','千四','千五','千六','千七','千八','千九','二〇','二千','二一','二千一','二二','二千二','二三','二千三','二四','二千四','二五','二千五','二六','二千六','二七','二千七','二八','二千八','三〇','三千','三一','三千一','三二','三千二','三三','三千三','三四','三千四','当該']);
+const BABA_KEYS=new Set(['ダ良','ダ稍','ダ重','ダ不','芝良','芝稍','芝重','芝不']);
+function classifyStat(key){if(DIST_KEYS.has(key))return 'dist';if(BABA_KEYS.has(key))return 'baba';return 'course';}
+function isScratchLine(l){return SCRATCH_WORDS.has(l.trim().replace(/\t.*$/,''));}
+
+function reset(){
+  document.getElementById('inp').value='';
+  document.getElementById('out').textContent='';
+  document.getElementById('result-area').style.display='none';
+  document.getElementById('err').textContent='';
+}
+
+function copyOut(){
+  const t=document.getElementById('out').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=document.getElementById('copy-btn');
+    btn.textContent='コピーしました';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='コピー';btn.classList.remove('copied');},2000);
+  }).catch(()=>{
+    // フォールバック
+    const ta=document.createElement('textarea');
+    ta.value=t;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    const btn=document.getElementById('copy-btn');
+    btn.textContent='コピーしました';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='コピー';btn.classList.remove('copied');},2000);
+  });
+}
+
+function switchTab(i){
+  tabIdx=i;
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',i===j));
+  renderOutput();
+}
+
+function run(){
+  document.getElementById('err').textContent='';
+  const raw=document.getElementById('inp').value;
+  if(!raw.trim()){document.getElementById('err').textContent='データを貼り付けてください。';return}
+  try{
+    const r=parseAll(raw);
+    meta=r.meta;horses=r.horses;
+    if(!horses.length){document.getElementById('err').textContent='馬データを検出できませんでした。\n競馬ラボの出馬表ページで馬柱エリアをドラッグ選択してコピーしてください。';return}
+    document.getElementById('result-area').style.display='block';
+    const active=horses.filter(h=>!h.scratched);
+    const excl=horses.filter(h=>h.scratched);
+    const bar=document.getElementById('info-bar');
+    bar.innerHTML=`
+      <span class="badge">レース: <strong>${meta.raceName||'-'}</strong></span>
+      <span class="badge">距離: <strong>${meta.dist||'-'}</strong></span>
+      <span class="badge">馬場: <strong>${meta.track||'-'}</strong></span>
+      <span class="badge">出走馬: <strong>${active.length}頭</strong></span>
+      ${excl.length?`<span class="badge scratch">除外/取消: <strong>${excl.length}頭</strong></span>`:''}
+    `;
+    renderOutput();
+  }catch(e){document.getElementById('err').textContent='解析エラー: '+e.message;}
+}
+
+function extractMeta(lines){
+  const m={round:'',date:'',cls:'',dist:'',track:'',raceName:''};
+  for(let i=0;i<Math.min(60,lines.length);i++){
+    const l=lines[i].trim();
+    if(!m.round&&/^\d+R$/.test(l))m.round=l;
+    if(!m.date&&/\d{4}\/\d+\/\d+/.test(l)){const dm=l.match(/\d{4}\/\d+\/\d+(\([日月火水木金土]\))?/);if(dm)m.date=dm[0]}
+    if(!m.cls&&/(未勝利|新馬|\d勝クラス|オープン|重賞|障害)/.test(l)&&l.length<30)m.cls=l;
+    if(!m.dist&&/[ダ芝障]\d{3,4}m?/.test(l)){const dm=l.match(/(?:ダ|芝|障)\d{3,4}m?/);if(dm)m.dist=dm[0]}
+    if(!m.track&&/(晴|曇|雨|雪|小雨)(良|稍|重|不)/.test(l)){const tm=l.match(/(晴|曇|雨|雪|小雨)(良|稍|重|不)/);if(tm)m.track=tm[0]}
+  }
+  m.raceName=[m.round,m.date,m.cls].filter(Boolean).join(' ');
+  return m;
+}
+
+function parseAll(raw){
+  const lines=raw.split('\n').map(l=>l.trimEnd());
+  const meta=extractMeta(lines);
+  const starts=[];
+  for(let i=0;i<lines.length;i++){if(/^[1-8]\t\d{1,2}\t/.test(lines[i]))starts.push(i);}
+  const horses=starts.map((s,b)=>parseHorse(lines.slice(s,b+1<starts.length?starts[b+1]:lines.length)));
+  return{meta,horses:horses.filter(Boolean)};
+}
+
+const CIRCLED='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱'.split('');
+
+function parseHorse(block){
+  const h={waku:'',bango:'',name:'',scratched:false,scratchReason:'',jockeyMark:'',jockey:'',kinryo:'',kyakushitsu:'',seibetsu:'',age:'',stableArea:'',stable:'',interval:'',blinker:false,sire:'',dam:'',ninki:'',odds:'',taijyu:'',taijyuDiff:'',owner:'',breeder:'',rateJockey:'',rateJockeyN:'',rateBango:'',rateBangoN:'',rateSire:'',rateSireN:'',rateCombi:'',rateCombiN:'',distStats:{},distOrder:[],courseStats:{},courseOrder:[],babaStats:{},babaOrder:[],jumpDistStats:{},jumpDistOrder:[],races:[],siblings:''};
+  const wm=block[0].match(/^([1-8])\t(\d{1,2})\t/);
+  if(!wm)return null;
+  h.waku=wm[1];h.bango=wm[2];
+  let i=1;
+  while(i<block.length&&/^[…\-\.…\s]*$/.test(block[i].trim())&&block[i].trim().length>0)i++;
+  if(i<block.length){const l=block[i].trim();if(l&&!/[（(]/.test(l)&&!/^[牝牡セ]/.test(l)){h.name=l;i++;}}
+  if(i<block.length){
+    if(isScratchLine(block[i])){h.scratched=true;h.scratchReason=block[i].trim().replace(/\t.*$/,'');i++;}
+    else{const m=block[i].trim().match(/^([▲△◇☆★◎○●▽]?)\s*(.+?)[\(（](\d+\.?\d*)[\)）]([\s◁◀▶▷]*)/);if(m){h.jockeyMark=m[1].trim();h.jockey=m[2].trim();h.kinryo=m[3];h.kyakushitsu=m[4].trim();i++;}}
+  }
+  if(i<block.length&&!isScratchLine(block[i])){const l=block[i].trim();const m=l.match(/^([牝牡セ])(\d+)\s*([美地栗]?)((?:・)?[^\s]+)\s*(中\d+週|初出走|連闘)?(\s+B)?$/);if(m){h.seibetsu=m[1];h.age=m[2];h.stableArea=m[3];h.stable=m[4].replace(/^・/,'');h.interval=m[5]?m[5].trim():'';h.blinker=!!(m[6])||l.endsWith(' B');i++;}}
+  while(i<block.length&&/^[\u3000　]/.test(block[i])){const name=block[i].replace(/^[\u3000　]/,'').trim();if(!h.sire)h.sire=name;else if(!h.dam)h.dam=name;i++;}
+  if(i<block.length&&isScratchLine(block[i])){h.scratched=true;h.scratchReason=block[i].trim().replace(/\t.*$/,'');i++;}
+  else{
+    if(i<block.length&&/^\d+人気$/.test(block[i].trim())){h.ninki=block[i].trim().replace('人気','');i++;}
+    if(i<block.length&&/[\d,]+\.?\d*倍$/.test(block[i].trim())){h.odds=block[i].trim().replace('倍','');i++;}
+    if(i<block.length&&/^\d{3,4}kg$/.test(block[i].trim())){h.taijyu=block[i].trim().replace('kg','');i++;}
+    if(i<block.length&&/^[\(（]/.test(block[i].trim())&&/kg[\)）]$/.test(block[i].trim())){h.taijyuDiff=block[i].trim().replace(/[\(（\)）kg]/g,'').replace('＋','+').replace('－','-');i++;}
+  }
+  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&block[i].trim().length<20){h.owner=block[i].trim();i++;}
+  while(i<block.length&&block[i].trim()==='')i++;
+  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&block[i].trim().length<20){h.breeder=block[i].trim();i++;}
+  const rateMap={'騎手':['rateJockey','rateJockeyN'],'馬番':['rateBango','rateBangoN'],'父馬':['rateSire','rateSireN'],'コンビ':['rateCombi','rateCombiN']};
+  for(let k=0;k<6&&i<block.length;k++){const l=block[i].trim();const rm=l.match(/^(騎手|馬番|父馬|コンビ)：([\d.]+)%\[(\d+)\]/);if(rm){const keys=rateMap[rm[1]];h[keys[0]]=rm[2];h[keys[1]]=rm[3];i++;}else if(l==='')i++;else break;}
+  const statLabelP=/^(.+?)\t(\d+)\t(\d+)\t(\d+)\t(\d+)/;
+  const statJumpP=/^(\d+)\t(\d+)\t(\d+)\t(\d+)$/;
+  let jumpDistCount=0;
+  while(i<block.length){
+    const raw=block[i];const l=raw.trim();
+    const m1=raw.match(statLabelP);
+    if(m1){const key=m1[1];const vals=[m1[2],m1[3],m1[4],m1[5]];const cat=classifyStat(key);if(cat==='dist'){h.distStats[key]=vals;h.distOrder.push(key);}else if(cat==='baba'){h.babaStats[key]=vals;h.babaOrder.push(key);}else{h.courseStats[key]=vals;h.courseOrder.push(key);}i++;continue;}
+    const m2=l.match(statJumpP);if(m2){jumpDistCount++;const key=`障害距離別_${jumpDistCount}`;h.jumpDistStats[key]=[m2[1],m2[2],m2[3],m2[4]];h.jumpDistOrder.push(key);i++;continue;}
+    if(/^\d+\t*$/.test(l)){i++;continue;}
+    break;
+  }
+  const raceStartP=/^(\d{1,2}|止|除)\s+(\S+)\s+(\d{2}\/\d+\/\d+)\s+([ダ芝障]\d+)/;
+  while(i<block.length){
+    const l=block[i].trim();
+    if(raceStartP.test(l)){
+      const rb=[];
+      for(let k=0;k<5&&i+k<block.length;k++){const rl=block[i+k].trim();if(k>0&&raceStartP.test(rl))break;rb.push(rl);}
+      h.races.push(parseRace(rb));i+=5;
+    }else{
+      if(l&&!isScratchLine(block[i])&&!/^\d+\t/.test(block[i])&&!statLabelP.test(block[i])&&!statJumpP.test(l)){if(h.siblings)h.siblings+=' '+l;else h.siblings=l;}
+      i++;
+    }
+  }
+  return h;
+}
+
+function parseRace(rows){
+  const r={chaku:'',kaijo:'',date:'',dist:'',raceName:'',corners:'',c1:'',c2:'',c3:'',c4:'',total:'',horseNum:'',ninki:'',tenki:'',baba:'',time:'',agari:'',pace:'',weight:'',weightDiff:'',jockey:'',kinryo:'',winner:'',diff:''};
+  if(rows[0]){const m=rows[0].match(/^(\d{1,2}|止|除)\s+(\S+)\s+(\d{2}\/\d+\/\d+)\s+([ダ芝障]\d+)/);if(m){r.chaku=m[1];r.kaijo=m[2];r.date=m[3];r.dist=m[4];}}
+  if(rows[1])r.raceName=rows[1];
+  if(rows[2]){
+    const sp=rows[2].indexOf(' ');const cornerRaw=sp>-1?rows[2].slice(0,sp):rows[2];
+    const chars=[];let s=cornerRaw;
+    while(s.length>0){let found=false;for(let k=0;k<CIRCLED.length;k++){if(s.startsWith(CIRCLED[k])){chars.push(String(k+1));s=s.slice(CIRCLED[k].length);found=true;break}}if(!found){if(s[0]==='－'||s[0]==='-')chars.push('-');s=s.slice(1);}}
+    r.c1=chars[0]||'';r.c2=chars[1]||'';r.c3=chars[2]||'';r.c4=chars[3]||'';
+    r.corners=['1角','2角','3角','4角'].map((lb,i)=>`${lb}:${chars[i]||'-'}`).join(' ');
+    const rest=sp>-1?rows[2].slice(sp+1):'';
+    const pm=rest.match(/(\d+)頭([\d\-]+)番([\d\-]+)人\s*(晴|曇|雨|雪|小雨)?\s*(良|稍|重|不)?/);
+    if(pm){r.total=pm[1];r.horseNum=pm[2].replace(/-+/,'');r.ninki=pm[3].replace(/-+/,'');r.tenki=pm[4]||'';r.baba=pm[5]||'';}
+  }
+  if(rows[3]){const m=rows[3].match(/^(\d+:\d+\.\d+|-:--\.-)\s+([\d.]+|-+\.?-*)\s*([HMS])?\s*(\d+)kg\(([^)]+)\)/);if(m){r.time=m[1]==='-:--.-'?'中止':m[1];r.agari=m[2].startsWith('-')?'':m[2];r.pace=m[3]||'';r.weight=m[4];r.weightDiff=m[5].replace('＋','+').replace('－','-');}}
+  if(rows[4]){const m=rows[4].match(/^([▲△◇☆★◎○●▽]?\S+)\s+([\d.]+)\s+(.+?)\(([^)]*)\)$/);if(m){r.jockey=m[1];r.kinryo=m[2];r.winner=m[3].trim();r.diff=m[4];}}
+  return r;
+}
+
+function renderOutput(){
+  const el=document.getElementById('out');
+  if(tabIdx===0)el.textContent=toStructured();
+  else if(tabIdx===1)el.textContent=toCSV();
+  else if(tabIdx===2)el.textContent=toTSV();
+  else el.textContent=toJSON();
+}
+
+function statStr(stats,key){return(stats[key]||['0','0','0','0']).join('-')}
+
+function toStructured(){
+  const out=[];
+  out.push('【レース情報】'+(meta.raceName||'-')+(meta.dist?' '+meta.dist:'')+(meta.track?' 馬場:'+meta.track:''),'');
+  for(const h of horses){
+    out.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    const scrTag=h.scratched?`　【${h.scratchReason||'除外'}】`:'';
+    out.push(`【${h.bango}番】${h.name}　枠番:${h.waku}${scrTag}`);
+    if(h.jockey)out.push(`騎手: ${h.jockeyMark}${h.jockey}　斤量: ${h.kinryo}kg${h.kyakushitsu?' 脚質:'+h.kyakushitsu:''}`);
+    if(h.seibetsu)out.push(`性別: ${h.seibetsu}　年齢: ${h.age}歳　厩舎: ${h.stableArea?h.stableArea+'・':''}${h.stable}　間隔: ${h.interval||'初出走'}${h.blinker?' [B]':''}`);
+    if(h.sire)out.push(`父: ${h.sire||'-'}　母: ${h.dam||'-'}`);
+    if(!h.scratched)out.push(`単勝: ${h.ninki?h.ninki+'番人気':'-'}　オッズ: ${h.odds?h.odds+'倍':'-'}　馬体重: ${h.taijyu?h.taijyu+'kg':'-'}(${h.taijyuDiff||'---'})`);
+    if(h.owner||h.breeder)out.push(`馬主: ${h.owner||'-'}　生産者: ${h.breeder||'-'}`);
+    out.push('');
+    if(h.rateJockey)out.push(`【連対率】騎手×コース:${h.rateJockey}%[${h.rateJockeyN}]　馬番×コース:${h.rateBango}%[${h.rateBangoN}]　種牡馬×コース:${h.rateSire}%[${h.rateSireN}]　調教師×騎手:${h.rateCombi}%[${h.rateCombiN}]`);
+    out.push('');
+    if(h.jumpDistOrder.length){out.push('【障害距離別成績】(1着-2着-3着-4着以下)');out.push('  '+h.jumpDistOrder.map(k=>`${k}:[${statStr(h.jumpDistStats,k)}]`).join('　'));}
+    if(h.distOrder.length){out.push('【距離別成績】(1着-2着-3着-4着以下)');out.push('  '+h.distOrder.map(k=>`${k}:[${statStr(h.distStats,k)}]`).join('　'));}
+    if(h.courseOrder.length){out.push('【コース別成績】');out.push('  '+h.courseOrder.map(k=>`${k}:[${statStr(h.courseStats,k)}]`).join('　'));}
+    if(h.babaOrder.length){out.push('【馬場状態別成績】');out.push('  '+h.babaOrder.map(k=>`${k}:[${statStr(h.babaStats,k)}]`).join('　'));}
+    if(h.siblings)out.push(`【兄弟馬】${h.siblings}`);
+    out.push('');
+    if(h.races.length){
+      out.push('【前走歴】');
+      h.races.forEach((r,idx)=>{
+        const chakuDisp=r.chaku?(/^\d+$/.test(r.chaku)?r.chaku+'着':r.chaku):'?着';
+        out.push(`  ${idx+1}走前: ${chakuDisp}  ${r.kaijo||''}  ${r.date||''}  ${r.dist||''}  ${r.raceName||''}`);
+        out.push(`    通過順: ${r.corners||'-'}　${r.total||'?'}頭/${r.horseNum||'?'}番/${r.ninki||'?'}人気　天気:${r.tenki||'-'} 馬場:${r.baba||'-'}`);
+        if(r.time)out.push(`    タイム:${r.time}　上がり:${r.agari||'-'}　ペース:${r.pace||'-'}　体重:${r.weight}kg(${r.weightDiff})`);
+        if(r.jockey)out.push(`    騎手:${r.jockey} ${r.kinryo}kg　1着馬:${r.winner}(${r.diff}秒差)`);
+      });
+    }else{out.push('【前走歴】初出走（前走なし）');}
+    out.push('');
+  }
+  return out.join('\n');
+}
+
+function collectAllStatKeys(){
+  const jd=new Set(),d=new Set(),c=new Set(),b=new Set();
+  for(const h of horses){h.jumpDistOrder.forEach(k=>jd.add(k));h.distOrder.forEach(k=>d.add(k));h.courseOrder.forEach(k=>c.add(k));h.babaOrder.forEach(k=>b.add(k));}
+  const ref=horses.find(h=>h.distOrder.length>0)||{jumpDistOrder:[],distOrder:[],courseOrder:[],babaOrder:[]};
+  return{jumpDistKeys:[...jd],distKeys:ref.distOrder.filter(k=>d.has(k)),courseKeys:ref.courseOrder.filter(k=>c.has(k)),babaKeys:ref.babaOrder.filter(k=>b.has(k))};
+}
+
+function buildHeadersAndRows(){
+  const{jumpDistKeys,distKeys,courseKeys,babaKeys}=collectAllStatKeys();
+  const base=['馬番','枠番','馬名','除外フラグ','除外理由','騎手印','騎手','斤量','脚質','性別','年齢','厩舎地区','厩舎','間隔','ブリンカー','父','母','単勝人気','オッズ','馬体重','前走比','馬主','生産者','騎手×コース連対率','騎手×コースN','馬番×コース連対率','馬番×コースN','種牡馬×コース連対率','種牡馬×コースN','調教師×騎手連対率','調教師×騎手N'];
+  for(const k of jumpDistKeys)for(const s of ['_1着','_2着','_3着','_4着以下'])base.push(k+s);
+  for(const k of distKeys)for(const s of ['_1着','_2着','_3着','_4着以下'])base.push('距離別_'+k+s);
+  for(const k of courseKeys)for(const s of ['_1着','_2着','_3着','_4着以下'])base.push('コース別_'+k+s);
+  for(const k of babaKeys)for(const s of ['_1着','_2着','_3着','_4着以下'])base.push('馬場別_'+k+s);
+  base.push('兄弟馬情報');
+  const rH=n=>[`${n}走前着順`,`${n}走前開催`,`${n}走前日付`,`${n}走前距離`,`${n}走前レース名`,`${n}走前通過順`,`${n}走前1角`,`${n}走前2角`,`${n}走前3角`,`${n}走前4角`,`${n}走前頭数`,`${n}走前馬番`,`${n}走前人気`,`${n}走前天気`,`${n}走前馬場`,`${n}走前タイム`,`${n}走前上がり`,`${n}走前ペース`,`${n}走前体重`,`${n}走前体重差`,`${n}走前騎手`,`${n}走前斤量`,`${n}走前1着馬`,`${n}走前着差`];
+  for(let n=1;n<=5;n++)base.push(...rH(n));
+  const rows=horses.map(h=>{
+    const row=[h.bango,h.waku,h.name,h.scratched?'○':'',h.scratchReason||'',h.jockeyMark,h.jockey,h.kinryo,h.kyakushitsu,h.seibetsu,h.age,h.stableArea,h.stable,h.interval,h.blinker?'○':'',h.sire,h.dam,h.ninki,h.odds,h.taijyu,h.taijyuDiff,h.owner,h.breeder,h.rateJockey,h.rateJockeyN,h.rateBango,h.rateBangoN,h.rateSire,h.rateSireN,h.rateCombi,h.rateCombiN];
+    for(const k of jumpDistKeys){const v=h.jumpDistStats[k]||['','','',''];row.push(...v);}
+    for(const k of distKeys){const v=h.distStats[k]||['','','',''];row.push(...v);}
+    for(const k of courseKeys){const v=h.courseStats[k]||['','','',''];row.push(...v);}
+    for(const k of babaKeys){const v=h.babaStats[k]||['','','',''];row.push(...v);}
+    row.push(h.siblings||'');
+    const rR=r=>r?[r.chaku,r.kaijo,r.date,r.dist,r.raceName,r.corners,r.c1,r.c2,r.c3,r.c4,r.total,r.horseNum,r.ninki,r.tenki,r.baba,r.time,r.agari,r.pace,r.weight,r.weightDiff,r.jockey,r.kinryo,r.winner,r.diff]:Array(24).fill('');
+    for(let n=0;n<5;n++)row.push(...rR(h.races[n]));
+    return row;
+  });
+  return{headers:base,rows};
+}
+
+function ce(v){v=String(v??'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v}
+function te(v){return String(v??'').replace(/\t/g,' ')}
+function toCSV(){const{headers,rows}=buildHeadersAndRows();return[headers.map(ce).join(','),...rows.map(r=>r.map(ce).join(','))].join('\n')}
+function toTSV(){const{headers,rows}=buildHeadersAndRows();return[headers.map(te).join('\t'),...rows.map(r=>r.map(te).join('\t'))].join('\n')}
+function toJSON(){
+  return JSON.stringify(horses.map(h=>({
+    馬番:h.bango,枠番:h.waku,馬名:h.name,除外:h.scratched,除外理由:h.scratchReason||'',
+    騎手:{印:h.jockeyMark,名前:h.jockey,斤量:h.kinryo,脚質:h.kyakushitsu},性別:h.seibetsu,年齢:h.age,厩舎:{地区:h.stableArea,名前:h.stable},間隔:h.interval,ブリンカー:h.blinker,父:h.sire,母:h.dam,単勝人気:h.ninki,オッズ:h.odds,馬体重:h.taijyu,前走比:h.taijyuDiff,馬主:h.owner,生産者:h.breeder,
+    連対率:{騎手コース:{率:h.rateJockey,N:h.rateJockeyN},馬番コース:{率:h.rateBango,N:h.rateBangoN},種牡馬コース:{率:h.rateSire,N:h.rateSireN},調教師騎手:{率:h.rateCombi,N:h.rateCombiN}},
+    障害距離別成績:Object.fromEntries(h.jumpDistOrder.map(k=>[k,{一着:h.jumpDistStats[k][0],二着:h.jumpDistStats[k][1],三着:h.jumpDistStats[k][2],四着以下:h.jumpDistStats[k][3]}])),
+    距離別成績:Object.fromEntries(h.distOrder.map(k=>[k,{一着:h.distStats[k][0],二着:h.distStats[k][1],三着:h.distStats[k][2],四着以下:h.distStats[k][3]}])),
+    コース別成績:Object.fromEntries(h.courseOrder.map(k=>[k,{一着:h.courseStats[k][0],二着:h.courseStats[k][1],三着:h.courseStats[k][2],四着以下:h.courseStats[k][3]}])),
+    馬場別成績:Object.fromEntries(h.babaOrder.map(k=>[k,{一着:h.babaStats[k][0],二着:h.babaStats[k][1],三着:h.babaStats[k][2],四着以下:h.babaStats[k][3]}])),
+    兄弟馬:h.siblings,
+    前走歴:h.races.map((r,i)=>({走前:i+1,着順:r.chaku,開催:r.kaijo,日付:r.date,距離:r.dist,レース名:r.raceName,通過順:{表示:r.corners,一角:r.c1,二角:r.c2,三角:r.c3,四角:r.c4},頭数:r.total,馬番:r.horseNum,人気:r.ninki,天気:r.tenki,馬場:r.baba,タイム:r.time,上がり:r.agari,ペース:r.pace,体重:r.weight,体重差:r.weightDiff,騎手:r.jockey,斤量:r.kinryo,一着馬:r.winner,着差:r.diff}))
+  })),null,2);
+}
+</script>
+</body>
+</html>
