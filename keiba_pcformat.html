@@ -247,16 +247,18 @@ function run(){
 }
 
 function extractMeta(lines){
-  const m={round:'',date:'',cls:'',dist:'',track:'',raceName:''};
+  const m={round:'',date:'',venue:'',cls:'',dist:'',track:'',raceName:''};
   for(let i=0;i<Math.min(60,lines.length);i++){
     const l=lines[i].trim();
     if(!m.round&&/^\d+R$/.test(l))m.round=l;
     if(!m.date&&/\d{4}\/\d+\/\d+/.test(l)){const dm=l.match(/\d{4}\/\d+\/\d+(\([日月火水木金土]\))?/);if(dm)m.date=dm[0]}
+    if(!m.venue&&/\d+回\S+?\d+日目/.test(l)){const vm=l.match(/\d+回(\S+?)\d+日目/);if(vm)m.venue=vm[1];}
     if(!m.cls&&/(未勝利|新馬|\d勝クラス|オープン|重賞|障害)/.test(l)&&l.length<30)m.cls=l;
+    if(!m.cls&&l.length<30&&!/(芝|ダ|障)\d+/.test(l)&&/(賞|杯|特別|ステークス|カップ|Ｓ\s*[（(]?[ＧG]|[（(][ＧG][ⅠⅡⅢ123])/.test(l))m.cls=l;
     if(!m.dist&&/[ダ芝障]\d{3,4}m?/.test(l)){const dm=l.match(/(?:ダ|芝|障)\d{3,4}m?/);if(dm)m.dist=dm[0]}
     if(!m.track&&/(晴|曇|雨|雪|小雨)(良|稍|重|不)/.test(l)){const tm=l.match(/(晴|曇|雨|雪|小雨)(良|稍|重|不)/);if(tm)m.track=tm[0]}
   }
-  m.raceName=[m.round,m.date,m.cls].filter(Boolean).join(' ');
+  m.raceName=[m.round,m.venue,m.date,m.cls].filter(Boolean).join(' ');
   return m;
 }
 
