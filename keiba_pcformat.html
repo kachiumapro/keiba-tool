@@ -208,7 +208,6 @@ function copyOut(){
     btn.textContent='コピーしました';btn.classList.add('copied');
     setTimeout(()=>{btn.textContent='コピー';btn.classList.remove('copied');},2000);
   }).catch(()=>{
-    // フォールバック
     const ta=document.createElement('textarea');
     ta.value=t;document.body.appendChild(ta);ta.select();
     document.execCommand('copy');document.body.removeChild(ta);
@@ -265,7 +264,7 @@ function parseAll(raw){
   const lines=raw.split('\n').map(l=>l.trimEnd());
   const meta=extractMeta(lines);
   const starts=[];
-  for(let i=0;i<lines.length;i++){if(/^[1-8]\t\d{1,2}\t/.test(lines[i]))starts.push(i);}
+  for(let i=0;i<lines.length;i++){if(/^[1-8]\t\d{1,2}(\t|$)/.test(lines[i]))starts.push(i);}
   const horses=starts.map((s,b)=>parseHorse(lines.slice(s,b+1<starts.length?starts[b+1]:lines.length)));
   return{meta,horses:horses.filter(Boolean)};
 }
@@ -274,7 +273,7 @@ const CIRCLED='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱'.split('')
 
 function parseHorse(block){
   const h={waku:'',bango:'',name:'',scratched:false,scratchReason:'',jockeyMark:'',jockey:'',kinryo:'',kyakushitsu:'',seibetsu:'',age:'',stableArea:'',stable:'',interval:'',blinker:false,sire:'',dam:'',ninki:'',odds:'',taijyu:'',taijyuDiff:'',owner:'',breeder:'',rateJockey:'',rateJockeyN:'',rateBango:'',rateBangoN:'',rateSire:'',rateSireN:'',rateCombi:'',rateCombiN:'',distStats:{},distOrder:[],courseStats:{},courseOrder:[],babaStats:{},babaOrder:[],jumpDistStats:{},jumpDistOrder:[],races:[],siblings:''};
-  const wm=block[0].match(/^([1-8])\t(\d{1,2})\t/);
+  const wm=block[0].match(/^([1-8])\t(\d{1,2})(\t|$)/);
   if(!wm)return null;
   h.waku=wm[1];h.bango=wm[2];
   let i=1;
