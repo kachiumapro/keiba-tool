@@ -294,9 +294,11 @@ function parseHorse(block){
     if(i<block.length&&/^(\d{3,4}|---)kg$/.test(block[i].trim())){h.taijyu=block[i].trim().replace('kg','');i++;}
     if(i<block.length&&/^[\(（]/.test(block[i].trim())&&/kg[\)）]$/.test(block[i].trim())){h.taijyuDiff=block[i].trim().replace(/[\(（\)）kg]/g,'').replace('＋','+').replace('－','-');i++;}
   }
-  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&block[i].trim().length<20){h.owner=block[i].trim();i++;}
+  const isMarkLine=l=>/^[☆△▲◎○●◇▽…\t\s]+$/.test(l.trim())&&l.trim().length>0;
+  if(i<block.length&&isMarkLine(block[i]))i++;
+  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&!isMarkLine(block[i])&&block[i].trim().length<20){h.owner=block[i].trim();i++;}
   while(i<block.length&&block[i].trim()==='')i++;
-  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&block[i].trim().length<20){h.breeder=block[i].trim();i++;}
+  if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&!isMarkLine(block[i])&&block[i].trim().length<20){h.breeder=block[i].trim();i++;}
   const rateMap={'騎手':['rateJockey','rateJockeyN'],'馬番':['rateBango','rateBangoN'],'父馬':['rateSire','rateSireN'],'コンビ':['rateCombi','rateCombiN']};
   for(let k=0;k<6&&i<block.length;k++){const l=block[i].trim();const rm=l.match(/^(騎手|馬番|父馬|コンビ)：([\d.]+)%\[(\d+)\]/);if(rm){const keys=rateMap[rm[1]];h[keys[0]]=rm[2];h[keys[1]]=rm[3];i++;}else if(l==='')i++;else break;}
   const statLabelP=/^(.+?)\t(\d+)\t(\d+)\t(\d+)\t(\d+)/;
