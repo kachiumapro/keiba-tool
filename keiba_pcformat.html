@@ -291,7 +291,7 @@ function parseHorse(block){
   else{
     if(i<block.length&&/^\d+人気$/.test(block[i].trim())){h.ninki=block[i].trim().replace('人気','');i++;}
     if(i<block.length&&/[\d,]+\.?\d*倍$/.test(block[i].trim())){h.odds=block[i].trim().replace('倍','');i++;}
-    if(i<block.length&&/^\d{3,4}kg$/.test(block[i].trim())){h.taijyu=block[i].trim().replace('kg','');i++;}
+    if(i<block.length&&/^(\d{3,4}|---)kg$/.test(block[i].trim())){h.taijyu=block[i].trim().replace('kg','');i++;}
     if(i<block.length&&/^[\(（]/.test(block[i].trim())&&/kg[\)）]$/.test(block[i].trim())){h.taijyuDiff=block[i].trim().replace(/[\(（\)）kg]/g,'').replace('＋','+').replace('－','-');i++;}
   }
   if(i<block.length&&!isScratchLine(block[i])&&block[i].trim()&&!/[%：]/.test(block[i])&&!/^\d+\t/.test(block[i])&&block[i].trim().length<20){h.owner=block[i].trim();i++;}
