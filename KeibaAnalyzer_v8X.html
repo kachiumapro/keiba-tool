@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競馬本格分析 v8.0</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f5f0e8;font-family:'Georgia','Times New Roman',serif;color:#1a2e1a;min-height:100vh;}
+select,input,button{font-family:inherit;}
+select option{background:#eef7f0;color:#1a2e1a;}
+
+/* Header */
+#header{text-align:center;background:linear-gradient(180deg,#0d3d20 0%,#0a2e18 100%);border-bottom:3px solid #1a7a3a;padding:12px 8px 16px;}
+#header .sub{font-size:9px;letter-spacing:6px;color:#4a9a60;margin-bottom:4px;}
+#header h1{font-size:clamp(18px,4vw,32px);font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6),0 0 20px rgba(26,122,58,0.4);letter-spacing:2px;}
+#header .desc{font-size:10px;color:#6ab87a;margin-top:4px;letter-spacing:3px;font-weight:600;}
+#flash{margin-top:8px;display:inline-block;border-radius:6px;padding:5px 16px;font-size:13px;font-weight:700;display:none;}
+#flash.ok{background:rgba(26,180,80,0.18);border:2px solid #1ab450;color:#4ecf80;}
+#flash.err{background:rgba(255,78,78,0.14);border:2px solid #ff4e4e;color:#ff6e6e;}
+
+/* Layout */
+#app{max-width:1100px;margin:0 auto;padding:14px 8px;}
+
+/* Config card */
+.config-card{background:#fffdf5;border:2px solid #1a7a3a;border-radius:12px;padding:14px 18px;margin-bottom:14px;}
+.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;margin-bottom:12px;}
+label.ls{display:block;font-size:11px;color:#0d5a20;letter-spacing:2px;margin-bottom:5px;text-transform:uppercase;font-weight:900;}
+.is{background:#eef7f0;border:2px solid #1a7a3a;border-radius:6px;color:#1a2e1a;padding:7px 9px;font-size:12px;width:100%;outline:none;}
+.is-display{background:#eef7f0;border:2px solid #1a7a3a;border-radius:6px;color:#0a7a2a;padding:7px 9px;font-size:12px;font-weight:700;}
+.bs{background:#1a7a3a;border:2px solid #3ddb6a;border-radius:7px;color:#fff;padding:7px 13px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:700;}
+.bs:hover{background:#236b40;}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap;align-items:flex-end;}
+
+/* Bias area */
+.bias-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;padding:10px 14px;}
+.bias-info{font-size:11px;color:#1a5a2a;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700;}
+.bias-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.bias-btn{padding:6px 14px;border-radius:6px;border:2px solid;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;}
+.bias-btn.active{background:#1a7a3a;color:#fff;border-color:#1a7a3a;}
+.bias-btn.inactive{background:#ddf0e4;color:#1a5a2a;border-color:#8ac4a0;}
+.bias-note{font-size:10px;color:#3a6a4a;margin-top:5px;}
+
+/* Tabs */
+#tabs{display:flex;gap:3px;flex-wrap:wrap;}
+.tab-btn{padding:9px 14px;border-radius:7px 7px 0 0;border:none;cursor:pointer;font-family:inherit;font-size:12px;border-bottom:3px solid transparent;}
+.tab-btn.active{background:#1a7a3a;color:#fff;border-bottom-color:#3ddb6a;font-weight:900;}
+.tab-btn.inactive{background:#e8e4d8;color:#3a5a3a;font-weight:500;}
+
+/* Card */
+.card{background:#fffdf5;border:2px solid #1a7a3a;border-radius:0 12px 12px 12px;padding:18px;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* Section headers */
+.sec-sub{font-size:10px;letter-spacing:4px;color:#2a6a3a;}
+.sec-title{font-size:18px;color:#0d5a20;font-weight:900;margin-bottom:4px;}
+.sec-desc{font-size:12px;color:#2a5a3a;font-weight:600;}
+
+/* Import tab */
+.import-box{background:#eef7f0;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;line-height:2;color:#1a3a2a;border:1px solid #1a7a3a;}
+.file-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:10px;padding:16px 18px;margin-bottom:12px;}
+.feature-box{padding:12px 16px;background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;font-size:12px;color:#1a4a2a;line-height:1.9;margin-top:16px;}
+
+/* Result tab */
+.result-header{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.grade-badge{background:#fffdf5;border-radius:10px;padding:6px 14px;text-align:center;}
+.grade-badge .label{font-size:9px;color:#2a6a3a;letter-spacing:2px;}
+.grade-badge .val{font-size:24px;font-weight:900;line-height:1.1;}
+.grade-badge .name{font-size:10px;font-weight:700;}
+
+/* Sort buttons */
+.sort-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;padding:10px 12px;margin-bottom:14px;}
+.sort-label{font-size:11px;color:#0d5a20;margin-bottom:7px;letter-spacing:2px;font-weight:900;}
+.sort-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.sort-btn{padding:5px 11px;border-radius:6px;border:2px solid;cursor:pointer;font-family:inherit;font-size:11px;}
+.sort-btn.active{background:#1a7a3a;color:#fff;border-color:#3ddb6a;font-weight:900;}
+.sort-btn.inactive{background:#ddf0e4;color:#1a5a2a;border-color:#8ac4a0;font-weight:500;}
+.sort-note{font-size:10px;color:#2a6a3a;margin-top:5px;}
+
+/* Podium */
+.podium{display:flex;justify-content:center;gap:10px;margin-bottom:20px;align-items:flex-end;}
+.podium-item{text-align:center;flex:1;max-width:135px;}
+.podium-name{font-size:12px;font-weight:700;margin-bottom:2px;}
+.podium-jockey{font-size:11px;color:#3a6a4a;}
+.podium-score{font-size:21px;font-weight:700;margin:4px 0;}
+.podium-stand{border-radius:5px 5px 0 0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;}
+
+/* Horse cards */
+.horse-list{display:flex;flex-direction:column;gap:6px;}
+.horse-card{border-radius:10px;padding:11px 13px;}
+.horse-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.horse-num{font-size:14px;font-weight:900;width:18px;}
+.horse-rank{font-size:13px;font-weight:900;min-width:68px;}
+.edge-badge{font-size:11px;border-radius:4px;padding:1px 7px;font-weight:900;background:rgba(140,100,240,0.15);color:#6a40c0;border:1px solid #a080e0;}
+.horse-name{flex:1;font-size:14px;font-weight:900;color:#0a1a0a;}
+.horse-style{font-size:10px;color:#3a7a4a;margin-left:6px;font-weight:700;}
+.overseas{font-size:10px;color:#c05010;margin-left:6px;}
+.horse-right{font-size:11px;text-align:right;}
+.horse-jockey{color:#1a3a2a;font-weight:700;}
+.horse-rc{font-size:10px;font-weight:700;}
+.horse-score{font-size:22px;font-weight:900;text-align:right;}
+.horse-odds{font-size:10px;color:#8a5a10;font-weight:700;}
+.score-bar{height:5px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden;margin-top:7px;}
+.score-bar-inner{height:100%;border-radius:3px;}
+.edge-reasons{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+.edge-tag{font-size:10px;border-radius:4px;padding:1px 7px;font-weight:700;}
+.ev-tag{font-size:10px;background:#fff8e0;color:#8a5a10;border-radius:4px;padding:1px 7px;font-weight:700;border:1px solid #d4a843;}
+.score-breakdown{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap;}
+.score-chip{font-size:10px;background:#eef7f0;border:1px solid #8ac4a0;border-radius:4px;padding:2px 6px;}
+.horse-detail{display:flex;gap:10px;margin-top:5px;font-size:11px;color:#2a5a3a;flex-wrap:wrap;font-weight:600;}
+
+/* EdgeX tab */
+.edgeX-card{background:rgba(167,139,250,0.06);border:2px solid rgba(140,100,240,0.3);border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+.edgeX-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.edgeX-bar{height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-bottom:10px;}
+.edgeX-bar-inner{height:100%;background:linear-gradient(90deg,#a78bfa88,#a78bfa);border-radius:2px;}
+.edgeX-reasons{margin-bottom:8px;}
+.edgeX-footer{display:flex;gap:10px;font-size:11px;color:#2a5a3a;flex-wrap:wrap;padding-top:8px;border-top:1px solid rgba(140,100,240,0.2);font-weight:600;}
+
+/* Bets tab */
+.top3-row{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.top3-card{flex:1;min-width:100px;border-radius:10px;padding:12px;text-align:center;}
+.bet-list{display:flex;flex-direction:column;gap:6px;}
+.bet-row{border-radius:9px;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.bet-type-badge{border-radius:5px;padding:2px 10px;font-size:11px;font-weight:700;min-width:80px;text-align:center;}
+.bet-label{font-size:14px;font-weight:700;}
+.bet-reason{font-size:10px;margin-top:1px;}
+.bet-conf{font-size:12px;font-weight:700;}
+.disclaimer{margin-top:10px;padding:10px 14px;background:#eef7f0;border-radius:8px;font-size:11px;color:#3a6a4a;border:1px solid #8ac4a0;}
+
+/* Cross tab */
+.cross-add-box{background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:12px 16px;margin-bottom:16px;}
+.race-archive-card{background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.archive-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.archive-bar{height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-bottom:10px;}
+.archive-top3{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+.archive-badge{background:#eef7f0;border-radius:6px;padding:4px 10px;font-size:11px;}
+.archive-edge{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+
+/* Bias table */
+.bias-table{width:100%;border-collapse:collapse;font-size:12px;}
+.bias-table th{background:#0d3d20;color:#fff;font-weight:900;padding:8px 10px;text-align:center;}
+.bias-table th:first-child{text-align:left;}
+.bias-table td{padding:7px 10px;text-align:center;border-bottom:1px solid rgba(0,0,0,0.06);}
+.bias-table td:first-child{text-align:left;}
+.bias-table tr:hover{background:#f0faf2;}
+
+/* Weights table */
+.w-table{width:100%;border-collapse:collapse;font-size:12px;}
+.w-table th{background:#0d3d20;color:#fff;font-weight:900;padding:8px 10px;}
+.w-table th:first-child{text-align:left;}
+.w-table td{padding:7px 9px;text-align:center;border-bottom:1px solid rgba(0,0,0,0.06);}
+.w-table td:first-child{text-align:left;}
+.w-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;margin-right:6px;}
+
+/* Empty state */
+.empty{text-align:center;padding:48px 0;color:#3a6a4a;}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+
+/* Utility */
+.flex-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.overflow-x{overflow-x:auto;}
+.mt8{margin-top:8px;}
+.footer{text-align:center;margin-top:20px;font-size:9px;color:#3a7a4a;letter-spacing:4px;padding-bottom:20px;}
+
+@media print{button,select,input[type=file]{display:none!important;}body{background:white!important;}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="sub">TARGET CSV AUTO ANALYSIS v8.0</div>
+  <h1>競馬本格分析 v8.0</h1>
+  <div class="desc">エッジX検知 ／ レース横断ランキング ／ 戦略的馬券推奨</div>
+  <div id="flash"></div>
+</div>
+
+<div id="app">
+  <!-- CONFIG -->
+  <div class="config-card">
+    <div class="config-grid">
+      <div>
+        <label class="ls">レース名</label>
+        <div class="is-display" id="disp-race">（CSV読込後に自動表示）</div>
+      </div>
+      <div>
+        <label class="ls">コース</label>
+        <div class="is-display" id="disp-course">（CSV読込後に自動表示）</div>
+      </div>
+      <div>
+        <label class="ls">開催何日目 <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-day">
+          <option value="1">1日目</option><option value="2">2日目</option><option value="3">3日目</option>
+          <option value="4">4日目</option><option value="5">5日目</option><option value="6">6日目</option>
+          <option value="7">7日目</option><option value="8">8日目</option>
+        </select>
+      </div>
+      <div>
+        <label class="ls">馬場状態 <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-cond">
+          <option>良</option><option>稍重</option><option>重</option><option>不良</option>
+        </select>
+      </div>
+      <div class="btn-row" id="action-btns" style="display:none">
+        <button class="bs" onclick="exportCSV()">⬇CSV</button>
+        <button class="bs" onclick="window.print()">🖨</button>
+        <button class="bs" style="background:#6a3fb0;border-color:#8a5fd0" onclick="addToArchive()">＋横断登録</button>
+      </div>
+    </div>
+    <!-- Bias -->
+    <div class="bias-area">
+      <div class="bias-info" id="bias-info"></div>
+      <div class="bias-btns" id="bias-btns"></div>
+      <div class="bias-note" id="bias-note"></div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs">
+    <button class="tab-btn active" onclick="switchTab('import')">📂 CSV読込</button>
+    <button class="tab-btn inactive" onclick="switchTab('result')">📊 分析結果</button>
+    <button class="tab-btn inactive" onclick="switchTab('edgeX')">💎 エッジX</button>
+    <button class="tab-btn inactive" onclick="switchTab('bets')">🎯 戦略買い目</button>
+    <button class="tab-btn inactive" onclick="switchTab('cross')">🏆 横断ランク</button>
+    <button class="tab-btn inactive" onclick="switchTab('bias')">🏟 バイアス</button>
+    <button class="tab-btn inactive" onclick="switchTab('weights')">⚖️ 重み</button>
+  </div>
+
+  <!-- IMPORT TAB -->
+  <div id="tab-import" class="tab-content card active">
+    <div class="sec-sub">STEP 1 — CSV読込</div>
+    <div class="sec-title">TARGETからCSVを読み込む</div>
+    <div class="import-box" style="margin-top:12px">
+      <b style="color:#0d5a20">① 全馬全成績CSV（必須）</b><br>
+      出馬表分析 → 前走読 → 出力 →「全馬全成績CSV形式」→「成績フルセットデータ」<br>
+      <b style="color:#0d5a20">② 出馬表CSV（推奨）</b><br>
+      出馬表分析 → 出力 →「出馬表CSV形式」（馬番・騎手・<b style="color:#c07010">単勝オッズ・人気</b>を自動取得）
+    </div>
+    <div class="file-area">
+      <label class="ls">① 全馬全成績CSV <span style="color:#cc2222">必須</span></label>
+      <input type="file" accept=".csv" id="zenba-file" style="color:#1a3a2a;font-size:13px;width:100%">
+    </div>
+    <div class="file-area">
+      <label class="ls">② 出馬表CSV <span style="color:#2a6a3a">推奨</span> <span style="color:#c07010;font-size:10px">オッズ自動取得</span></label>
+      <input type="file" accept=".csv" id="shutsuba-file" style="color:#1a3a2a;font-size:13px;width:100%">
+    </div>
+    <div style="text-align:center">
+      <button class="bs" id="analyze-btn" onclick="handleFiles()" style="padding:13px 48px;font-size:16px">🔍 CSV解析して分析開始</button>
+    </div>
+    <div class="feature-box">
+      <b style="color:#0d5a20">v8.0 新機能：</b><br>
+      <b style="color:#c07010">💎 エッジX検知</b>　スコアとオッズの乖離から「市場が無視した爆発要因」を自動抽出<br>
+      <b style="color:#6a3fb0">🏆 レース横断ランキング</b>　複数レースをSSS〜Bでグレード評価・本日の勝負鞍を特定<br>
+      <b style="color:#c0206a">🎯 戦略的馬券推奨</b>　エッジXの性質・バイアスに基づく最適券種を自動策定
+    </div>
+  </div>
+
+  <!-- RESULT TAB -->
+  <div id="tab-result" class="tab-content card">
+    <div id="result-content"><div class="empty"><div class="empty-icon">📂</div><div>CSV読込タブからデータを読み込んでください</div></div></div>
+  </div>
+
+  <!-- EDGEX TAB -->
+  <div id="tab-edgeX" class="tab-content card">
+    <div class="sec-sub">STEP 2 — ANOMALY DETECTION</div>
+    <div class="sec-title" style="color:#6a40c0">💎 エッジX検知</div>
+    <div class="sec-desc" style="margin-bottom:16px">スコアに対し人気が著しく低い馬の爆発要因を特定</div>
+    <div id="edgeX-content"><div class="empty"><div class="empty-icon">💎</div><div>CSVを読み込んでください</div></div></div>
+  </div>
+
+  <!-- BETS TAB -->
+  <div id="tab-bets" class="tab-content card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div>
+        <div class="sec-sub">STEP 4 — STRATEGIC BETS</div>
+        <div class="sec-title">🎯 戦略的馬券推奨</div>
+        <div class="sec-desc">エッジX性質・バイアス・スコアから最適券種を自動策定</div>
+      </div>
+      <button class="bs" style="background:rgba(26,180,80,0.15);color:#0a7a2a;border-color:#1ab450" onclick="copyBets()">📋 コピー</button>
+    </div>
+    <div id="bets-content"><div class="empty"><div>データを読み込んでください</div></div></div>
+  </div>
+
+  <!-- CROSS TAB -->
+  <div id="tab-cross" class="tab-content card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div>
+        <div class="sec-sub">STEP 3 — CROSS RACE RANKING</div>
+        <div class="sec-title">🏆 レース横断ランキング</div>
+        <div class="sec-desc">本日の勝負鞍をSSS〜Bでランク付け</div>
+      </div>
+      <button class="bs" style="color:#ff5555;background:transparent;border-color:#ff9999" onclick="clearArchive()">🗑 クリア</button>
+    </div>
+    <div id="cross-add-area"></div>
+    <div id="cross-content"><div class="empty"><div class="empty-icon">🏆</div><div>各レースを分析後、「横断登録」ボタンで追加してください</div></div></div>
+  </div>
+
+  <!-- BIAS TAB -->
+  <div id="tab-bias" class="tab-content card">
+    <div class="sec-sub">TRACK BIAS DATABASE</div>
+    <div class="sec-title" style="margin-bottom:16px">各競馬場のバイアス傾向</div>
+    <div class="overflow-x"><table class="bias-table" id="bias-table"></table></div>
+  </div>
+
+  <!-- WEIGHTS TAB -->
+  <div id="tab-weights" class="tab-content card">
+    <div class="sec-sub">WEIGHT SYSTEM</div>
+    <div class="sec-title">距離別 重み付け一覧</div>
+    <div id="weights-cat-label" style="font-size:12px;color:#2a5a3a;margin-top:3px;margin-bottom:16px"></div>
+    <div class="overflow-x"><table class="w-table" id="w-table"></table></div>
+  </div>
+
+  <div class="footer">━━ KEIBA ANALYSIS v8.0 ━━</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA & CONSTANTS
+// ═══════════════════════════════════════
+const BIAS_KEYS = ["内・逃げ先行有利","外・先行有利","フラット","内・差し有利","外・差し有利"];
+const COURSE_BIAS_DB = {
+  "東京":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"直線長く開催後半は外差し台頭。開幕は内先行有利。"},
+  "中山":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"急坂・小回りで前残り。開幕は内先行が圧倒的有利。"},
+  "阪神":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"外回りは差しが届きやすい。内回りは前残り傾向。"},
+  "京都":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"淀の坂が影響。内回りは特に先行有利。"},
+  "中京":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"開幕週は内先行有利・後半は外差し台頭。"},
+  "新潟":{芝:{early:"外・差し有利",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"直線最長。外枠差し馬が常に有利。"},
+  "福島":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"小回りで前残り傾向が強い。"},
+  "小倉":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"高速馬場で先行馬が止まらない。"},
+  "札幌":{芝:{early:"フラット",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"洋芝で時計がかかる。差し馬が台頭しやすい。"},
+  "函館":{芝:{early:"フラット",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"洋芝・小回り。時計がかかると差しも届く。"},
+};
+const COURSES = Object.keys(COURSE_BIAS_DB);
+const BIAS_TABLE_DATA = {
+  "内・逃げ先行有利":{"逃げ":95,"先行":85,"中団":45,"後方":22,"不明":55},
+  "外・差し有利":{"逃げ":18,"先行":35,"中団":82,"後方":95,"不明":55},
+  "フラット":{"逃げ":60,"先行":65,"中団":60,"後方":55,"不明":58},
+  "内・差し有利":{"逃げ":32,"先行":42,"中団":85,"後方":92,"不明":55},
+  "外・先行有利":{"逃げ":55,"先行":90,"中団":55,"後方":30,"不明":55},
+};
+const DIST_LABEL = {sprint:"短距離〜1200m",short:"1400m",mile:"マイル",middle:"中距離",long:"長距離"};
+const WEIGHTS = {
+  sprint:{bestTime:24,agari3f:14,style:14,courseApt:9,jockey:7,riderChange:4,trackBias:10,trackCond:4,gradeBonus:14},
+  short: {bestTime:20,agari3f:13,style:9, courseApt:9,jockey:9, riderChange:7, trackBias:11,trackCond:6, gradeBonus:16},
+  mile:  {bestTime:14,agari3f:13,style:7, courseApt:9,jockey:13,riderChange:13,trackBias:11,trackCond:8, gradeBonus:12},
+  middle:{bestTime:10,agari3f:10,style:5, courseApt:9,jockey:15,riderChange:17,trackBias:12,trackCond:12,gradeBonus:10},
+  long:  {bestTime:6, agari3f:6, style:4, courseApt:9,jockey:15,riderChange:19,trackBias:13,trackCond:18,gradeBonus:10},
+};
+const W_LABEL = {bestTime:"持ち時計",agari3f:"上り3F",style:"脚質×バイアス",courseApt:"コース適性",jockey:"騎手",riderChange:"乗り替わり",trackBias:"枠×バイアス",trackCond:"馬場状態",gradeBonus:"重賞実績"};
+const W_COLOR = {bestTime:"#f0c040",agari3f:"#4ecdc4",style:"#a78bfa",courseApt:"#fb923c",jockey:"#60a5fa",riderChange:"#f472b6",trackBias:"#94a3b8",trackCond:"#1a7a3a",gradeBonus:"#fbbf24"};
+const COND_SCORE = {"良":100,"稍重":78,"重":55,"不良":30};
+const RIDER_SCORE = {"大幅強化":100,"強化":82,"横乗り":55,"変化なし":50,"弱体":25,"大幅弱体":5};
+const OVERSEAS_KW = ["海外","豪州","香港","ＵＡＥ","ｻｳｼﾞ","仏国","英国","米国","愛国","南ア","ｱﾗ首"];
+const JOCKEY_DB = {
+  "ルメール":100,"川田将雅":97,"モレイラ":100,"ムーア":100,"デットーリ":100,
+  "レーン":98,"ボウマン":97,"マクドナルド":96,"スミヨン":96,"デムーロ":94,
+  "戸崎圭太":88,"岩田康誠":84,"横山典弘":84,"池添謙一":83,"岩田望来":83,
+  "松山弘平":82,"坂井瑠星":82,"鮫島克駿":82,
+  "浜中俊":80,"武豊":80,"北村友一":79,"三浦皇成":79,"団野大成":78,
+  "吉田隼人":76,"丸山元気":75,"田辺裕信":75,"西村淳也":74,"藤岡佑介":74,
+  "和田竜二":73,"横山和生":73,"幸英明":72,
+  "酒井学":71,"菱田裕二":69,"富田暁":69,"佐々木大":69,
+  "高杉吏麒":66,"太宰啓介":66,"丸田恭介":63,
+};
+const JOCKEY_S_FOREIGN = ["モレイラ","ムーア","デットーリ","レーン","ボウマン","マクドナルド","スミヨン","ビュイック","ドイル","デムーロ"];
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let state = {
+  horses: [], raceName: "", distance: "1600", trackType: "芝",
+  cond: "良", course: "阪神", kaisaiDay: "1", manualBias: "",
+  sortKey: "total", currentTab: "import", raceArchive: [],
+};
+let ranked = [], results = [], strategicBets = [], raceGrade = {};
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function getDayCat(d){const n=Number(d);return n<=2?"early":n<=4?"mid":n<=6?"late":"final";}
+function getAutoBias(course,type,day){
+  const db=COURSE_BIAS_DB[course];
+  if(!db) return{bias:"フラット",note:"データなし"};
+  return{bias:(type==="ダ"?db.ダ:db.芝)[getDayCat(day)],note:db.note};
+}
+function getDistCat(m){const d=Number(m);if(d<=1200)return"sprint";if(d<=1400)return"short";if(d<=1800)return"mile";if(d<=2200)return"middle";return"long";}
+function isDom(b){return!OVERSEAS_KW.some(o=>b.includes(o));}
+function isForeign(name){return/^[ァ-ヶー・]+$/.test((name||"").trim())&&(name||"").trim().length>=3;}
+function getJockeyScore(name){
+  if(!name||!name.replace(/-/g,"").trim()) return 55;
+  for(const[k,v] of Object.entries(JOCKEY_DB)){if(name.includes(k)||k.includes(name)) return v;}
+  if(isForeign(name)){if(JOCKEY_S_FOREIGN.some(s=>name.includes(s)||s.includes(name))) return 97;return 85;}
+  return 63;
+}
+function riderChangeLabel(prev,curr){
+  if(!prev||!curr||prev===curr) return"変化なし";
+  if(!prev.replace(/-/g,"").trim()) return"変化なし";
+  const d=getJockeyScore(curr)-getJockeyScore(prev);
+  if(d>=15) return"大幅強化";if(d>=5) return"強化";if(d<=-15) return"大幅弱体";if(d<=-5) return"弱体";return"横乗り";
+}
+function wakuBiasScore(waku,bias){
+  const w=Number(waku)||0;if(!w) return 55;
+  if(bias==="内・逃げ先行有利"||bias==="内・差し有利") return w<=2?95:w<=4?80:w<=6?58:w<=7?40:25;
+  if(bias==="外・差し有利"||bias==="外・先行有利") return w<=2?25:w<=4?42:w<=6?65:w<=7?82:95;
+  return 58;
+}
+function wakuPenalty(waku,bias){
+  const w=Number(waku)||0;if(!w||bias==="フラット") return 1.0;
+  if(bias==="内・逃げ先行有利"||bias==="内・差し有利") return w<=2?1.00:w<=4?0.96:w<=6?0.90:w<=7?0.83:0.75;
+  if(bias==="外・差し有利"||bias==="外・先行有利") return w<=2?0.75:w<=4?0.83:w<=6?0.90:w<=7?0.96:1.00;
+  return 1.0;
+}
+function parseTime(t){
+  if(!t||!t.trim()) return null;
+  const p=t.trim().split(".");
+  try{if(p.length===3) return parseInt(p[0])*60+parseInt(p[1])+parseInt(p[2])/10;if(p.length===2) return parseInt(p[0])+parseInt(p[1])/10;}catch{}
+  return null;
+}
+function gradeFromClass(cls){
+  if(!cls) return 0;
+  const c=cls.replace(/[Ａ-Ｚａ-ｚ０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0));
+  if(/G1|GI/i.test(c)) return 100;if(/G2|GII/i.test(c)) return 75;if(/G3|GIII/i.test(c)) return 55;if(/OP|オープン|Listed|L$/i.test(c)) return 35;return 0;
+}
+function parseIntZen(s){
+  if(!s) return 99;
+  const h=s.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+  const n=parseInt(h);return isNaN(n)?99:n;
+}
+function normalizeScores(arr,isLower=false){
+  const valid=arr.filter(v=>v!==null);if(valid.length<2) return arr.map(()=>60);
+  const best=isLower?Math.min(...valid):Math.max(...valid);
+  const worst=isLower?Math.max(...valid):Math.min(...valid);
+  const range=Math.abs(best-worst);if(range===0) return arr.map(v=>v!==null?75:55);
+  return arr.map(v=>v===null?null:Math.round(100-Math.abs(v-best)/range*72));
+}
+function calcTotal(horse,W,cat){
+  const scores={
+    bestTime:horse.bestTimeScore??55,agari3f:horse.agariScore??55,style:horse.styleScore??55,
+    courseApt:horse.courseAptScore??50,jockey:horse.jockeyScore??55,riderChange:horse.riderScore??50,
+    trackBias:horse.wakuBiasScore??55,trackCond:horse.condScore??100,gradeBonus:horse.gradeBonusScore??0,
+  };
+  const base=Object.entries(scores).reduce((s,[k,v])=>s+v*(W[k]||0),0)/100;
+  const pen=horse.wakuPenalty??1.0;
+  const stylePen=(cat==="sprint"&&horse.style==="逃げ")?0.93:1.0;
+  const agariS=horse.agariScore??55;const rawForm=horse.formPenalty??1.0;
+  const formPen=agariS>=90?Math.min(1.0,rawForm+(1.0-rawForm)*0.7):agariS>=80?Math.min(1.0,rawForm+(1.0-rawForm)*0.4):rawForm;
+  return{total:Math.round(base*pen*stylePen*formPen*10)/10,scores};
+}
+function getRankByPos(pos){
+  if(pos===0) return{label:"◎ 本命",short:"◎",color:"#cc2222"};
+  if(pos===1) return{label:"○ 対抗",short:"○",color:"#c07010"};
+  if(pos===2) return{label:"▲ 単穴",short:"▲",color:"#8a7a00"};
+  if(pos===3) return{label:"☆ 特注",short:"☆",color:"#6a40c0"};
+  if(pos<=5)  return{label:"△ 連下",short:"△",color:"#0a7a5a"};
+  return{label:"× 消し",short:"×",color:"#6a6a6a"};
+}
+
+// ═══════════════════════════════════════
+// CSV PARSERS
+// ═══════════════════════════════════════
+function parseZenbaCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2) return[];
+  const headers=lines[0].split(",");const n=headers.length;
+  const IDX={nanhaemae:1,basho:6,dist:41,trackType:40,jockey:35,time:50,agari:65,style:62,name:139,chaku:26,className:9};
+  return lines.slice(1).map(rowStr=>{
+    const row=rowStr.split(",");const nRuns=Math.floor(row.length/n);
+    const name=(row[IDX.name]||"").trim();
+    let times=[],agariList=[],styleList=[],prevJockey="",prevFound=false,firstRunOverseas=false;
+    const courseStats={};let gradeBonusScore=0;
+    for(let i=0;i<nRuns;i++){
+      const b=row.slice(i*n,(i+1)*n);
+      const basho=(b[IDX.basho]||"").trim();const dist=(b[IDX.dist]||"").trim();
+      const agari=(b[IDX.agari]||"").trim();const timeRaw=(b[IDX.time]||"").trim();
+      const style=(b[IDX.style]||"").trim();const jk=(b[IDX.jockey]||"").trim();
+      const nm=parseInt(b[IDX.nanhaemae]||"99")||99;const chaku=parseIntZen(b[IDX.chaku]);
+      const cls=(b[IDX.className]||"").trim();const dom=isDom(basho);
+      if(!prevFound&&jk&&jk.replace(/-/g,"").trim()){
+        if(i===0){firstRunOverseas=!dom;if(dom){prevJockey=jk;prevFound=true;}}
+        else if(dom){prevJockey=jk;prevFound=true;}
+      }
+      const t=parseTime(timeRaw);
+      if(t&&dist) times.push({dist,t,isOverseas:!dom,nm,chaku});
+      if(agari&&agari!=="不明"){const a=parseFloat(agari);if(!isNaN(a)) agariList.push({val:a,nm});}
+      if(style&&style!=="不明") styleList.push(style);
+      if(dom){const key=`${basho}_${b[IDX.trackType]||""}_${dist}`;if(!courseStats[key]) courseStats[key]={wins:0,places:0,runs:0};courseStats[key].runs++;if(chaku===1) courseStats[key].wins++;if(chaku<=3) courseStats[key].places++;}
+      if(i<5&&dom&&chaku<=3){const g=gradeFromClass(cls);if(g>0){const pc=chaku===1?1.0:chaku===2?0.7:0.45;gradeBonusScore=Math.max(gradeBonusScore,Math.round(g*pc));}}
+    }
+    return{name,prevJockey,firstRunOverseas,times,agariList,styleList,courseStats,gradeBonusScore};
+  }).filter(h=>h.name);
+}
+function parseShutsubaCSV(text){
+  const entries={};
+  for(const line of text.split(/\r?\n/)){
+    if(!line.trim()) continue;const cols=line.split(",");if(cols.length<31) continue;
+    const bango=(cols[3]||"").trim(),name=(cols[7]||"").trim(),jockey=(cols[10]||"").trim();
+    const waku=(cols[22]||"").trim();
+    const ninki=parseInt((cols[25]||"").trim())||null;
+    const odds=parseFloat((cols[30]||"").trim())||null;
+    if(name) entries[name]={bango,jockey,waku,ninki,odds};
+  }
+  return entries;
+}
+function calcCourseApt(courseStats,course,type,dist){
+  const exact=courseStats[`${course}_${type}_${dist}`];
+  if(exact&&exact.runs>=2) return{score:Math.min(100,Math.round(20+exact.places/exact.runs*65+exact.wins/exact.runs*15)),label:`${exact.runs}走`,basis:"同コース同距離"};
+  const near=Object.keys(courseStats).filter(k=>{const[b,t,d]=k.split("_");return b===course&&t===type&&Math.abs(Number(d)-Number(dist))<=200;});
+  if(near.length){const c=near.reduce((a,k)=>({wins:a.wins+courseStats[k].wins,places:a.places+courseStats[k].places,runs:a.runs+courseStats[k].runs}),{wins:0,places:0,runs:0});if(c.runs>=2) return{score:Math.min(95,Math.round(18+c.places/c.runs*60+c.wins/c.runs*12)),label:`${c.runs}走`,basis:"同コース近距離"};}
+  const same=Object.keys(courseStats).filter(k=>k.split("_")[1]===type);
+  if(same.length){const c=same.reduce((a,k)=>({wins:a.wins+courseStats[k].wins,places:a.places+courseStats[k].places,runs:a.runs+courseStats[k].runs}),{wins:0,places:0,runs:0});if(c.runs>=2) return{score:Math.min(85,Math.round(25+c.places/c.runs*45)),label:`${c.runs}走`,basis:"同芝ダート"};}
+  return{score:50,label:"データ少",basis:"参考なし"};
+}
+
+// ═══════════════════════════════════════
+// EDGE X
+// ═══════════════════════════════════════
+function detectEdgeX(rankedArr){
+  const scoreRank=[...rankedArr].sort((a,b)=>b.total-a.total);
+  const topThreshold=scoreRank[Math.floor(scoreRank.length*0.4)]?.total??0;
+  return rankedArr.map(h=>{
+    const odds=h.odds||null,ninki=h.ninki||null;
+    if(!odds||!ninki) return{...h,edgeX:false,edgeXScore:0,edgeXReasons:[],expectedValue:null};
+    const expectedValue=Math.round(h.total*odds)/10;
+    const isHighScore=h.total>=topThreshold,isUnderrated=ninki>=5;
+    const edgeXReasons=[];
+    if(isHighScore&&isUnderrated){
+      if(h.rcLabel==="大幅強化"||h.rcLabel==="強化") edgeXReasons.push({label:"乗り替わり強化",icon:"🎽",color:"#c0206a"});
+      if(h.gradeBonusScore>=45) edgeXReasons.push({label:"重賞実績過小評価",icon:"🥇",color:"#8a5a10"});
+      if((h.styleScore??55)>=80) edgeXReasons.push({label:"バイアス優位脚質",icon:"💨",color:"#6a40c0"});
+      if((h.wakuBiasScore??55)>=80) edgeXReasons.push({label:"バイアス優位枠",icon:"🏟",color:"#2a5a7a"});
+      if((h.agariScore??55)>=80) edgeXReasons.push({label:"末脚上位",icon:"🔥",color:"#0a7a2a"});
+      if((h.courseAptScore??50)>=75) edgeXReasons.push({label:"コース適性◎",icon:"📍",color:"#8a4010"});
+      if(h.isOverseasReturn) edgeXReasons.push({label:"海外帰り初戦",icon:"✈️",color:"#1a5a8a"});
+      if(edgeXReasons.length===0) edgeXReasons.push({label:"スコア対比低人気",icon:"📊",color:"#2a6a4a"});
+    }
+    const edgeXScore=isHighScore&&isUnderrated?Math.min(100,Math.round((h.total/(scoreRank[0]?.total||1))*50+Math.min(odds/20,1)*30+(edgeXReasons.length/4)*20)):0;
+    return{...h,edgeX:edgeXScore>=30,edgeXScore,edgeXReasons,expectedValue};
+  });
+}
+
+// ═══════════════════════════════════════
+// RACE GRADE
+// ═══════════════════════════════════════
+function calcRaceGrade(rankedArr){
+  if(!rankedArr.length) return{grade:"-",gradeLabel:"-",gradeColor:"#6a6a6a",axisTrust:0,edgeExpect:0,overall:0};
+  const sorted=[...rankedArr].sort((a,b)=>b.total-a.total);
+  const scoreDiff=sorted[0]&&sorted[1]?sorted[0].total-sorted[1].total:0;
+  const axisTrust=Math.min(100,Math.round(scoreDiff*6));
+  const edgeHorses=rankedArr.filter(h=>h.edgeX);
+  const edgeExpect=edgeHorses.length>0?Math.min(100,Math.round(edgeHorses.reduce((s,h)=>s+h.edgeXScore,0)/edgeHorses.length*(1+edgeHorses.length*0.1))):0;
+  const overall=Math.round(axisTrust*0.5+edgeExpect*0.3+Math.min(sorted[0]?.total??0,100)*0.2);
+  let grade,gradeLabel,gradeColor;
+  if(overall>=85){grade="SSS";gradeLabel="最高勝負鞍";gradeColor="#cc2222";}
+  else if(overall>=70){grade="SS";gradeLabel="強力勝負鞍";gradeColor="#c07010";}
+  else if(overall>=55){grade="S";gradeLabel="勝負鞍";gradeColor="#8a7a00";}
+  else if(overall>=40){grade="A";gradeLabel="有力レース";gradeColor="#0a7a5a";}
+  else{grade="B";gradeLabel="様子見";gradeColor="#6a6a6a";}
+  return{grade,gradeLabel,gradeColor,axisTrust,edgeExpect,overall};
+}
+
+// ═══════════════════════════════════════
+// STRATEGIC BETS
+// ═══════════════════════════════════════
+function genStrategicBets(rankedArr,effectiveBias){
+  const bets=[];const sorted=[...rankedArr].sort((a,b)=>b.total-a.total);
+  const[r1,r2,r3]=sorted;
+  const edgeHorses=sorted.filter(h=>h.edgeX).slice(0,2);
+  const hasEdge=edgeHorses.length>0;const edgeMain=edgeHorses[0];
+  if(!r1) return bets;
+  const pivot=hasEdge&&edgeMain?.total>=(r2?.total??0)*0.9?edgeMain:r1;
+  const pivotIsEdge=pivot.edgeX;const scoreDiff=r1&&r2?r1.total-r2.total:0;
+  if(scoreDiff>=8) bets.push({type:"単勝",label:`${pivot.bango||pivot.name}`,desc:pivot.name,conf:"高",reason:"抜けたスコア差あり",icon:"🥇"});
+  if(pivotIsEdge&&pivot.odds>=5) bets.push({type:"単勝（期待値）",label:`${pivot.bango||pivot.name}`,desc:`${pivot.name}(${pivot.odds}倍)`,conf:"高",reason:`期待値指数${pivot.expectedValue}`,icon:"💎"});
+  if(r1&&r2){
+    bets.push({type:"馬連",label:`${r1.bango}-${r2.bango}`,desc:`${r1.name}↔${r2.name}`,conf:scoreDiff>=5?"高":"中",reason:"上位2頭",icon:"🔗"});
+    if(scoreDiff>=5||pivotIsEdge) bets.push({type:"馬単",label:`${pivot.bango}→${r2===pivot?r1.bango:r2.bango}`,desc:`${pivot.name}1着固定`,conf:"中",reason:pivot===r1?"本命1着固定":"エッジX1着固定",icon:"🎯"});
+  }
+  if(effectiveBias==="内・逃げ先行有利"){const nm=sorted.find(h=>h.style==="逃げ");if(nm&&nm.total>=(r2?.total??0)*0.85) bets.push({type:"単勝（逃げ切り）",label:nm.bango||nm.name,desc:`${nm.name} 内先行バイアス`,conf:"中",reason:"バイアス優位・逃げ馬",icon:"🏇"});}
+  if(effectiveBias==="外・差し有利"){const sm=sorted.filter(h=>h.style==="後方"||h.style==="中団").slice(0,2);if(sm.length>=2) bets.push({type:"ワイド（差し）",label:`${sm[0].bango}-${sm[1].bango}`,desc:"外差しバイアス強調",conf:"中",reason:"外差しバイアス対応",icon:"🌊"});}
+  if(hasEdge&&r1&&r2&&r3){const eb=edgeMain.bango;const others=sorted.filter(h=>h.bango!==eb).slice(0,2);if(others.length>=2) bets.push({type:"三連複（エッジX軸）",label:`${eb}-${others[0].bango}-${others[1].bango}`,desc:`${edgeMain.name}軸`,conf:"中",reason:`エッジX:${edgeMain.edgeXReasons[0]?.label??""}`,icon:"💥"});}
+  if(r1&&r2&&r3){
+    bets.push({type:"三連複",label:`${r1.bango}-${r2.bango}-${r3.bango}`,desc:`${r1.name}/${r2.name}/${r3.name}`,conf:"中",reason:"上位3頭BOX",icon:"📦"});
+    if(scoreDiff>=8) bets.push({type:"三連単",label:`${r1.bango}→${r2.bango}→${r3.bango}`,desc:`${r1.name}頭固定`,conf:"低",reason:"本命頭固定",icon:"🎰"});
+  }
+  const top4=sorted.slice(0,4);
+  for(let i=0;i<top4.length;i++) for(let j=i+1;j<top4.length;j++){
+    const[ha,hb]=[top4[i],top4[j]];const isEdgePair=ha.edgeX||hb.edgeX;
+    bets.push({type:"ワイド",label:`${ha.bango}-${hb.bango}`,desc:`${ha.name}↔${hb.name}`,conf:i===0&&j===1?"高":isEdgePair?"高":i<=1?"中":"低",reason:isEdgePair?"エッジX絡みワイド":"上位組み合わせ",icon:"↔️"});
+  }
+  return bets;
+}
+
+// ═══════════════════════════════════════
+// CLIPBOARD
+// ═══════════════════════════════════════
+async function copyToClipboard(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(text);return true;}catch{}}
+  const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand("copy");return true;}catch{return false;}finally{document.body.removeChild(ta);}
+}
+
+// ═══════════════════════════════════════
+// FLASH MESSAGE
+// ═══════════════════════════════════════
+function flash(msg,isErr=false){
+  const el=document.getElementById("flash");
+  el.textContent=msg;el.className=isErr?"err":"ok";el.style.display="inline-block";
+  setTimeout(()=>{el.style.display="none";},3500);
+}
+
+// ═══════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════
+function switchTab(tab){
+  state.currentTab=tab;
+  document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(el=>{el.classList.remove("active");el.classList.add("inactive");});
+  document.getElementById(`tab-${tab}`).classList.add("active");
+  const tabBtns=document.querySelectorAll(".tab-btn");
+  const tabNames=["import","result","edgeX","bets","cross","bias","weights"];
+  const idx=tabNames.indexOf(tab);
+  if(idx>=0){tabBtns[idx].classList.add("active");tabBtns[idx].classList.remove("inactive");}
+  if(tab==="bias") renderBiasTable();
+  if(tab==="weights") renderWeightsTable();
+  if(tab==="cross") renderCrossTab();
+}
+
+// ═══════════════════════════════════════
+// BIAS UI
+// ═══════════════════════════════════════
+function renderBiasUI(){
+  const ab=getAutoBias(state.course,state.trackType,state.kaisaiDay);
+  const eff=state.manualBias||ab.bias;
+  document.getElementById("bias-info").innerHTML=
+    `<span>🏟 トラックバイアス:</span>
+     <span style="color:#1a3a2a">${state.course}/${state.trackType}/${state.kaisaiDay}日目 → 自動: <b style="color:#0a7a2a">${ab.bias}</b></span>
+     <span style="color:${state.manualBias?"#c0206a":"#1a7a3a"}">${state.manualBias?"🖊 手動: "+state.manualBias:"🤖 自動適用中"}</span>`;
+  document.getElementById("bias-note").textContent=ab.note;
+  const btns=document.getElementById("bias-btns");
+  btns.innerHTML=`<button class="bias-btn ${!state.manualBias?"active":"inactive"}" onclick="setBias('')">🤖 自動</button>`+
+    BIAS_KEYS.map(b=>`<button class="bias-btn ${state.manualBias===b?"active":"inactive"}" onclick="setBias('${b}')">${b}</button>`).join("");
+}
+function setBias(b){state.manualBias=b;renderBiasUI();if(state.horses.length) recompute();}
+
+// ═══════════════════════════════════════
+// FILE HANDLING
+// ═══════════════════════════════════════
+async function handleFiles(){
+  const zenbaFile=document.getElementById("zenba-file").files[0];
+  if(!zenbaFile){flash("全馬CSVを選択してください",true);return;}
+  const btn=document.getElementById("analyze-btn");
+  btn.textContent="⏳ 解析中...";btn.disabled=true;
+  try{
+    const readSJIS=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(f,"Shift-JIS");});
+    const zenbaText=await readSJIS(zenbaFile);
+    const zenbaData=parseZenbaCSV(zenbaText);
+    let entries={};
+    let detDist=state.distance,detType=state.trackType,detCourse=state.course,detName=state.raceName;
+    const shutsubaFile=document.getElementById("shutsuba-file").files[0];
+    if(shutsubaFile){
+      const st=await readSJIS(shutsubaFile);
+      entries=parseShutsubaCSV(st);
+      const first=st.split(/\r?\n/).find(l=>l.trim());
+      if(first){
+        const cols=first.split(",");
+        if(cols[4]) detName=cols[4].trim();
+        if(cols[5]) detType=cols[5].trim().includes("芝")?"芝":"ダ";
+        if(cols[6]) detDist=cols[6].trim();
+        if(cols[1]&&COURSES.includes(cols[1].trim())) detCourse=cols[1].trim();
+        state.raceName=detName;state.trackType=detType;state.distance=detDist;state.course=detCourse;
+        document.getElementById("disp-race").textContent=detName||"（未取得）";
+        document.getElementById("disp-course").textContent=`${detCourse} ${detType} ${detDist}m`;
+      }
+    }
+    const avgTimes=zenbaData.map(h=>{
+      const dom=h.times.filter(t=>t.dist===detDist&&!t.isOverseas).sort((a,b)=>a.nm-b.nm).slice(0,5);
+      if(dom.length<=1) return null;const use=dom.slice(0,3).map(t=>t.t);return use.reduce((s,v)=>s+v,0)/use.length;
+    });
+    const timeScores=normalizeScores(avgTimes,true);
+    const avgAgari=zenbaData.map(h=>{
+      const sorted=h.agariList.sort((a,b)=>a.nm-b.nm).slice(0,5);if(!sorted.length) return null;
+      const use=sorted.slice(0,3).map(a=>a.val);return use.reduce((s,v)=>s+v,0)/use.length;
+    });
+    const agariScores=normalizeScores(avgAgari,true);
+    state.horses=zenbaData.map((h,idx)=>{
+      const entry=entries[h.name]||{};
+      const currJockey=entry.jockey||"";const prevJockey=h.prevJockey||"";
+      const rcLabel=riderChangeLabel(prevJockey,currJockey);
+      const style=h.styleList.length>0?h.styleList.sort((a,b)=>h.styleList.filter(v=>v===b).length-h.styleList.filter(v=>v===a).length)[0]:"不明";
+      const domTimes=h.times.filter(t=>t.dist===detDist&&!t.isOverseas).sort((a,b)=>a.nm-b.nm);
+      const bestTime=domTimes.length?Math.min(...domTimes.map(t=>t.t)):null;
+      const bestAgari=h.agariList.length?Math.min(...h.agariList.map(a=>a.val)):null;
+      const allDomRuns=h.times.filter(t=>!t.isOverseas).sort((a,b)=>a.nm-b.nm);
+      const recentChaku=allDomRuns[0]?.chaku??99;
+      const best5Chaku=allDomRuns.slice(0,5).reduce((b,t)=>Math.min(b,t.chaku),99);
+      const formPenalty=recentChaku===1?1.06:recentChaku<=3&&best5Chaku===1?1.05:recentChaku<=3?1.03:recentChaku<=5&&best5Chaku<=2?1.02:recentChaku<=5?1.00:recentChaku<=8&&best5Chaku<=3?0.98:recentChaku<=8?0.96:best5Chaku<=3?0.95:0.92;
+      const courseApt=calcCourseApt(h.courseStats,detCourse,detType,detDist);
+      return{
+        name:h.name,bango:entry.bango||"",waku:entry.waku||"",jockey:currJockey,prevJockey,rcLabel,style,
+        isOverseasReturn:h.firstRunOverseas||false,recentChaku,best5Chaku,formPenalty,
+        bestTime:bestTime?bestTime.toFixed(1):null,bestAgari:bestAgari?bestAgari.toFixed(1):null,
+        runs1200:domTimes.length,
+        bestTimeScore:timeScores[idx]??55,agariScore:agariScores[idx]??55,
+        jockeyScore:getJockeyScore(currJockey),riderScore:RIDER_SCORE[rcLabel]??50,
+        courseAptScore:courseApt.score,courseAptLabel:courseApt.label,courseAptBasis:courseApt.basis,
+        gradeBonusScore:h.gradeBonusScore||0,
+        odds:entry.odds||null,ninki:entry.ninki||null,
+        wakuBiasScore:55,styleScore:55,condScore:100,wakuPenalty:1.0,
+      };
+    });
+    document.getElementById("action-btns").style.display="flex";
+    recompute();
+    switchTab("result");
+    flash(`✓ ${state.horses.length}頭 読み込み完了`);
+  }catch(e){flash("読み込みエラー: "+e.message,true);}
+  btn.textContent="🔍 CSV解析して分析開始";btn.disabled=false;
+}
+
+// ═══════════════════════════════════════
+// RECOMPUTE
+// ═══════════════════════════════════════
+function recompute(){
+  const ab=getAutoBias(state.course,state.trackType,state.kaisaiDay);
+  const effectiveBias=state.manualBias||ab.bias;
+  const cat=getDistCat(state.distance);const W=WEIGHTS[cat];
+  const cndScore=COND_SCORE[state.cond]||100;
+  let rankedBase=state.horses.map(h=>{
+    const wbs=wakuBiasScore(h.waku,effectiveBias);const pen=wakuPenalty(h.waku,effectiveBias);
+    const stl=(BIAS_TABLE_DATA[effectiveBias]||BIAS_TABLE_DATA["フラット"])[h.style]||55;
+    const h2={...h,wakuBiasScore:wbs,wakuPenalty:pen,styleScore:stl,condScore:cndScore};
+    const{total,scores}=calcTotal(h2,W,cat);return{...h2,total,scores};
+  }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRankByPos(i)}));
+  ranked=detectEdgeX(rankedBase);
+  raceGrade=calcRaceGrade(ranked);
+  strategicBets=genStrategicBets(ranked,effectiveBias);
+  results=sortResults();
+  renderResult();
+  renderEdgeX();
+  renderBets();
+}
+function sortResults(){
+  return[...ranked].sort((a,b)=>{
+    if(state.sortKey==="agari3f") return(b.agariScore??55)-(a.agariScore??55);
+    if(state.sortKey==="bestTime") return(b.bestTimeScore??55)-(a.bestTimeScore??55);
+    if(state.sortKey==="gradeBonus") return(b.gradeBonusScore||0)-(a.gradeBonusScore||0);
+    if(state.sortKey==="jockey") return(b.jockeyScore??55)-(a.jockeyScore??55);
+    if(state.sortKey==="riderChange") return(b.riderScore??50)-(a.riderScore??50);
+    if(state.sortKey==="edgeX") return(b.edgeXScore||0)-(a.edgeXScore||0);
+    if(state.sortKey==="expectedVal") return(b.expectedValue||0)-(a.expectedValue||0);
+    return b.total-a.total;
+  });
+}
+function setSort(key){state.sortKey=key;results=sortResults();renderHorseList();}
+
+// ═══════════════════════════════════════
+// RENDER RESULT
+// ═══════════════════════════════════════
+function renderResult(){
+  const cat=getDistCat(state.distance);const ab=getAutoBias(state.course,state.trackType,state.kaisaiDay);
+  const eff=state.manualBias||ab.bias;const topScore=ranked[0]?.total||1;
+  const g=raceGrade;
+  let html=`
+  <div class="result-header">
+    <div>
+      <div class="sec-sub">ANALYSIS RESULT</div>
+      <div class="sec-title">${state.raceName||"分析結果"}</div>
+      <div class="sec-desc">${state.course} ${state.trackType} ${state.distance}m（${DIST_LABEL[cat]}）　馬場:${state.cond}　バイアス:${eff}${!state.manualBias?'<span style="color:#3a7a4a;font-size:10px">（自動）</span>':""}</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">
+      <div class="grade-badge" style="border:3px solid ${g.gradeColor}">
+        <div class="label">RACE GRADE</div>
+        <div class="val" style="color:${g.gradeColor}">${g.grade}</div>
+        <div class="name" style="color:${g.gradeColor}">${g.gradeLabel}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <button class="bs" onclick="exportCSV()">⬇CSV</button>
+        <button class="bs" onclick="window.print()">🖨</button>
+        <button class="bs" style="background:#b07800;border-color:#d4a843" onclick="switchTab('bets')">🎯 買い目→</button>
+      </div>
+    </div>
+  </div>`;
+
+  // Podium
+  if(ranked.length>=3){
+    const po=[ranked[1],ranked[0],ranked[2]];const ht=[88,118,68],lb=["2nd","1st","3rd"],gc=["#909090","#c07010","#8a5a30"];
+    html+=`<div class="podium">`;
+    po.forEach((h,pi)=>{
+      html+=`<div class="podium-item">
+        <div style="font-size:11px;color:${h.rank.color};font-weight:900">${h.rank.label}</div>
+        <div class="podium-name">${h.bango?"#"+h.bango+" ":""}${h.name}${h.edgeX?'<span style="font-size:9px;color:#6a40c0"> 💎</span>':""}</div>
+        <div class="podium-jockey">${h.jockey}</div>
+        ${h.odds?`<div style="font-size:10px;color:#8a5a10;font-weight:700">${h.ninki}人 ${h.odds}倍</div>`:""}
+        <div class="podium-score" style="color:${gc[pi]}">${h.total}</div>
+        <div class="podium-stand" style="height:${ht[pi]}px;background:${gc[pi]}22;border:1px solid ${gc[pi]}66;color:${gc[pi]}">${lb[pi]}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // Sort buttons
+  const sortKeys=[["total","🏆 総合"],["edgeX","💎 エッジX"],["expectedVal","📈 期待値"],["agari3f","🔥 上り3F"],["bestTime","⏱ 持ち時計"],["gradeBonus","🥇 重賞実績"],["jockey","🎽 騎手"],["riderChange","🔄 乗り替わり"]];
+  html+=`<div class="sort-area"><div class="sort-label">並べ替え</div><div class="sort-btns">`;
+  sortKeys.forEach(([k,l])=>{html+=`<button class="sort-btn ${state.sortKey===k?"active":"inactive"}" onclick="setSort('${k}')">${l}</button>`;});
+  html+=`</div>${state.sortKey!=="total"?'<div class="sort-note">※ 印（◎○▲）は総合スコア順のまま。並べ替えは表示順のみ変更。</div>':""}</div>`;
+
+  html+=`<div class="horse-list" id="horse-list">`;
+  html+=renderHorseCards(results,topScore,WEIGHTS[cat]);
+  html+=`</div>`;
+  document.getElementById("result-content").innerHTML=html;
+}
+
+function renderHorseList(){
+  const cat=getDistCat(state.distance);const topScore=ranked[0]?.total||1;
+  const el=document.getElementById("horse-list");
+  if(el) el.innerHTML=renderHorseCards(results,topScore,WEIGHTS[cat]);
+  // update sort buttons
+  document.querySelectorAll(".sort-btn").forEach(btn=>{
+    const k=btn.getAttribute("onclick").match(/'([^']+)'/)[1];
+    btn.className=`sort-btn ${state.sortKey===k?"active":"inactive"}`;
+  });
+}
+
+function renderHorseCards(arr,topScore,W){
+  return arr.map((h,i)=>{
+    const rk=h.rank;const pct=(h.total/topScore)*100;
+    const borderL=h.edgeX?"#a78bfa":rk.color;
+    const bg=h.edgeX?"#f0ecff":"#fffdf5";
+    const border=h.edgeX?"rgba(140,100,240,0.5)":rk.color;
+    const rcColor=h.rcLabel==="大幅強化"||h.rcLabel==="強化"?"#0a7a2a":h.rcLabel.includes("弱")?"#cc2222":"#3a6a4a";
+    const chakuColor=h.recentChaku<=3?"#0a7a2a":h.recentChaku<=5?"#1a3a2a":h.recentChaku<=8?"#b06010":"#cc2222";
+    let html=`<div class="horse-card" style="background:${bg};border:2px solid ${border};border-left:6px solid ${borderL}">
+      <div class="horse-top">
+        <div class="horse-num" style="color:#1a5a2a">${i+1}</div>
+        <div class="horse-rank" style="color:${rk.color}">${rk.label}</div>
+        ${h.edgeX?'<div class="edge-badge">💎 エッジX</div>':""}
+        <div class="horse-name">${h.bango?`<span style="color:#2a6a3a;font-size:11px">#${h.bango}</span> `:""}${h.name}<span class="horse-style">${h.style}</span>${h.isOverseasReturn?'<span class="overseas">⚠海外帰り</span>':""}</div>
+        <div class="horse-right"><div class="horse-jockey">${h.jockey}</div><div class="horse-rc" style="color:${rcColor}">${h.rcLabel}</div></div>
+        <div><div class="horse-score" style="color:${h.edgeX?"#6a40c0":rk.color}">${h.total}</div>${h.odds?`<div class="horse-odds">${h.ninki}人気/${h.odds}倍</div>`:""}</div>
+      </div>
+      <div class="score-bar"><div class="score-bar-inner" style="width:${pct}%;background:linear-gradient(90deg,${h.edgeX?"#a78bfa":""+rk.color}88,${h.edgeX?"#c0a0ff":rk.color})"></div></div>`;
+    if(h.edgeX&&h.edgeXReasons.length>0){
+      html+=`<div class="edge-reasons">`;
+      h.edgeXReasons.forEach(r=>{html+=`<span class="edge-tag" style="background:rgba(140,100,240,0.1);color:${r.color};border:1px solid ${r.color}44">${r.icon} ${r.label}</span>`;});
+      if(h.expectedValue) html+=`<span class="ev-tag">期待値指数: ${h.expectedValue}</span>`;
+      html+=`</div>`;
+    }
+    html+=`<div class="score-breakdown">`;
+    Object.entries(h.scores).forEach(([k,v])=>{
+      html+=`<div class="score-chip"><span style="color:${W_COLOR[k]}">${W_LABEL[k]}</span><b style="color:#0a1a0a;margin-left:2px">${Math.round(v)}</b><span style="color:#3a6a4a;margin-left:1px">×${W[k]}%</span></div>`;
+    });
+    html+=`</div><div class="horse-detail">
+      <span>持ち時計: <b style="color:#8a5a10">${h.bestTime?h.bestTime+"秒":"---"}</b>(${h.runs1200}走)</span>
+      <span>上り3F: <b style="color:#0a7a2a">${h.bestAgari?h.bestAgari+"秒":"---"}</b></span>
+      <span>直近国内: <b style="color:${chakuColor}">${h.recentChaku<=18?h.recentChaku+"着":"---"}</b></span>
+      <span>近5ベスト: <b style="color:#6a40c0">${h.best5Chaku<=18?h.best5Chaku+"着":"---"}</b></span>
+      ${h.gradeBonusScore>0?`<span>重賞実績: <b style="color:#8a5a10">${h.gradeBonusScore}点</b></span>`:""}
+      ${h.prevJockey&&h.prevJockey!==h.jockey?`<span>前走騎手: <b style="color:#c0206a">${h.prevJockey}</b></span>`:""}
+    </div></div>`;
+    return html;
+  }).join("");
+}
+
+// ═══════════════════════════════════════
+// RENDER EDGEX
+// ═══════════════════════════════════════
+function renderEdgeX(){
+  const edgeHorses=ranked.filter(h=>h.edgeX).sort((a,b)=>b.edgeXScore-a.edgeXScore);
+  if(!edgeHorses.length){
+    document.getElementById("edgeX-content").innerHTML=`<div class="empty">${state.horses.length===0?"CSVを読み込んでください":"このレースにエッジXは検出されませんでした（オッズデータが出馬表CSVに必要です）"}</div>`;return;
+  }
+  let html="";
+  edgeHorses.forEach(h=>{
+    html+=`<div class="edgeX-card">
+      <div class="edgeX-top">
+        <div style="font-size:24px;font-weight:700;color:#6a40c0">💎</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:900;color:#0a1a0a">${h.bango?"#"+h.bango+" ":""}${h.name}<span style="font-size:11px;color:${h.rank.color};margin-left:8px">${h.rank.label}</span></div>
+          <div style="font-size:12px;color:#3a6a4a;margin-top:2px">${h.jockey} / ${h.style}</div>
+        </div>
+        <div style="text-align:right"><div style="font-size:11px;color:#3a6a4a">スコア</div><div style="font-size:22px;font-weight:900;color:#6a40c0">${h.total}</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:#3a6a4a">単勝オッズ</div><div style="font-size:22px;font-weight:900;color:#8a5a10">${h.odds}倍</div><div style="font-size:11px;color:#3a6a4a">${h.ninki}番人気</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:#3a6a4a">期待値指数</div><div style="font-size:22px;font-weight:900;color:#0a7a2a">${h.expectedValue}</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:#3a6a4a">エッジXスコア</div><div style="font-size:22px;font-weight:900;color:#c07010">${h.edgeXScore}</div></div>
+      </div>
+      <div class="edgeX-bar"><div class="edgeX-bar-inner" style="width:${h.edgeXScore}%"></div></div>
+      <div style="margin-bottom:8px"><div style="font-size:11px;color:#3a6a4a;margin-bottom:5px">爆発要因</div><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    h.edgeXReasons.forEach(r=>{html+=`<div style="background:#eef7f0;border:1px solid ${r.color}44;border-radius:6px;padding:4px 10px;font-size:12px;color:${r.color};font-weight:600">${r.icon} ${r.label}</div>`;});
+    html+=`</div></div>
+      <div class="edgeX-footer">
+        <span>スコア: <b style="color:#6a40c0">${h.total}</b></span>
+        <span>上り3F: <b style="color:#0a7a2a">${h.bestAgari||"---"}秒</b></span>
+        <span>重賞実績: <b style="color:#8a5a10">${h.gradeBonusScore}pt</b></span>
+        <span>乗り替わり: <b style="color:#c0206a">${h.rcLabel}</b></span>
+        ${h.waku?`<span>枠: <b style="color:#2a5a7a">${h.waku}枠</b></span>`:""}
+      </div>
+    </div>`;
+  });
+  document.getElementById("edgeX-content").innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// RENDER BETS
+// ═══════════════════════════════════════
+function renderBets(){
+  if(!ranked.length){document.getElementById("bets-content").innerHTML=`<div class="empty">データを読み込んでください</div>`;return;}
+  let html=`<div class="top3-row">`;
+  ranked.slice(0,3).forEach((h,i)=>{
+    const rk=h.rank;const badge=["◎","○","▲"][i];
+    html+=`<div class="top3-card" style="background:${h.edgeX?"#f0ecff":"#eef7f0"};border:2px solid ${h.edgeX?"rgba(140,100,240,0.5)":rk.color}44">
+      <div style="font-size:24px;color:${rk.color};font-weight:700">${badge}</div>
+      ${h.edgeX?'<div style="font-size:9px;color:#6a40c0;font-weight:700;margin-top:2px">💎 EdgeX</div>':""}
+      <div style="font-size:12px;font-weight:700;color:#0a1a0a;margin-top:2px">${h.bango?"#"+h.bango+" ":""}${h.name}</div>
+      <div style="font-size:10px;color:#3a6a4a;margin-top:1px">${h.jockey} / ${h.rcLabel}</div>
+      <div style="font-size:20px;color:${h.edgeX?"#6a40c0":rk.color};font-weight:700;margin-top:2px">${h.total}点</div>
+      ${h.odds?`<div style="font-size:10px;color:#8a5a10;font-weight:700;margin-top:1px">${h.ninki}人気 / ${h.odds}倍</div>`:""}
+    </div>`;
+  });
+  html+=`</div><div class="bet-list">`;
+  strategicBets.forEach(bet=>{
+    const cc={高:"#0a7a2a",中:"#8a7a00",低:"#c07010"}[bet.conf]||"#6a6a6a";
+    const isEdge=bet.type.includes("エッジ")||bet.type.includes("期待値");
+    html+=`<div class="bet-row" style="background:${isEdge?"#f0ecff":"#eef7f0"};border:1px solid ${isEdge?"rgba(140,100,240,0.4)":"#8ac4a0"}">
+      <div style="font-size:16px">${bet.icon}</div>
+      <div class="bet-type-badge" style="background:${isEdge?"rgba(140,100,240,0.15)":"rgba(26,122,58,0.1)"};color:${isEdge?"#6a40c0":"#0d5a20"}">${bet.type}</div>
+      <div style="flex:1"><div class="bet-label">${bet.label}</div><div class="bet-reason" style="color:#3a6a4a">${bet.reason}</div></div>
+      <div class="bet-conf" style="color:${cc}">信頼度 ${bet.conf}</div>
+    </div>`;
+  });
+  html+=`</div><div class="disclaimer">※ 買い目はスコア・エッジX分析に基づく参考情報です。実際の購入はご自身の判断でお願いします。</div>`;
+  document.getElementById("bets-content").innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// CROSS TAB
+// ═══════════════════════════════════════
+function addToArchive(){
+  if(!ranked.length) return;
+  const g=calcRaceGrade(ranked);
+  const entry={
+    id:Date.now(),raceName:state.raceName||"未設定",
+    course:state.course,trackType:state.trackType,distance:state.distance,cond:state.cond,effectiveBias:state.manualBias||getAutoBias(state.course,state.trackType,state.kaisaiDay).bias,
+    grade:g,
+    top3:ranked.slice(0,3).map(h=>({name:h.name,bango:h.bango,total:h.total,odds:h.odds,edgeX:h.edgeX,edgeXScore:h.edgeXScore,edgeXReasons:h.edgeXReasons})),
+    edgeHorses:ranked.filter(h=>h.edgeX).map(h=>({name:h.name,bango:h.bango,total:h.total,odds:h.odds,edgeXScore:h.edgeXScore,edgeXReasons:h.edgeXReasons})),
+  };
+  const idx=state.raceArchive.findIndex(r=>r.raceName===entry.raceName);
+  if(idx>=0) state.raceArchive[idx]=entry;else state.raceArchive.push(entry);
+  flash(`✓「${entry.raceName}」を横断ランキングに追加（${g.grade}）`);
+  if(state.currentTab==="cross") renderCrossTab();
+}
+function clearArchive(){state.raceArchive=[];renderCrossTab();}
+function renderCrossTab(){
+  const addArea=document.getElementById("cross-add-area");
+  if(state.horses.length){
+    addArea.innerHTML=`<div class="cross-add-box"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1"><div style="font-size:12px;color:#0d5a20;font-weight:700">現在分析中: ${state.raceName||"未設定"}</div>
+      <div style="font-size:11px;color:#2a5a3a">${state.course} ${state.trackType} ${state.distance}m　グレード判定: <b style="color:${raceGrade.gradeColor}">${raceGrade.grade} (${raceGrade.gradeLabel})</b></div></div>
+      <button class="bs" style="background:rgba(106,64,192,0.15);color:#6a40c0;border-color:rgba(140,100,240,0.5)" onclick="addToArchive()">＋ 横断ランキングに追加</button>
+    </div></div>`;
+  }else{addArea.innerHTML="";}
+  const content=document.getElementById("cross-content");
+  if(!state.raceArchive.length){content.innerHTML=`<div class="empty"><div class="empty-icon">🏆</div><div>各レースを分析後、「横断登録」ボタンで追加してください</div></div>`;return;}
+  let html="";
+  [...state.raceArchive].sort((a,b)=>b.grade.overall-a.grade.overall).forEach(race=>{
+    const g=race.grade;
+    html+=`<div class="race-archive-card" style="border:2px solid ${g.gradeColor}44">
+      <div class="archive-top">
+        <div style="font-size:32px;font-weight:700;color:${g.gradeColor};min-width:55px;text-align:center">${g.grade}</div>
+        <div style="flex:1">
+          <div style="font-size:16px;color:#0d5a20;font-weight:700">${race.raceName}</div>
+          <div style="font-size:11px;color:#2a5a3a">${race.course} ${race.trackType} ${race.distance}m / 馬場:${race.cond} / バイアス:${race.effectiveBias}</div>
+          <div style="font-size:11px;color:${g.gradeColor};font-weight:700">${g.gradeLabel}</div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;text-align:center">
+          <div><div style="color:#3a6a4a">軸信頼度</div><div style="font-size:18px;font-weight:700;color:#0a7a5a">${g.axisTrust}</div></div>
+          <div><div style="color:#3a6a4a">エッジX</div><div style="font-size:18px;font-weight:700;color:#6a40c0">${g.edgeExpect}</div></div>
+          <div><div style="color:#3a6a4a">総合自信度</div><div style="font-size:18px;font-weight:700;color:${g.gradeColor}">${g.overall}</div></div>
+        </div>
+      </div>
+      <div class="archive-bar"><div style="height:100%;width:${g.overall}%;background:linear-gradient(90deg,${g.gradeColor}44,${g.gradeColor});border-radius:2px"></div></div>
+      <div class="archive-top3">`;
+    race.top3.forEach((h,i)=>{html+=`<div class="archive-badge" style="color:${["#cc2222","#c07010","#8a7a00"][i]}">
+      ${["◎","○","▲"][i]} #${h.bango} ${h.name} ${h.total}点${h.odds?" ("+h.odds+"倍)":""}${h.edgeX?" 💎":""}
+    </div>`;});
+    html+=`</div>`;
+    if(race.edgeHorses.length){
+      html+=`<div class="archive-edge"><span style="font-size:10px;color:#3a6a4a">💎エッジX:</span>`;
+      race.edgeHorses.forEach(h=>{html+=`<span style="font-size:10px;background:#eef7f0;color:#6a40c0;border-radius:4px;padding:1px 7px;border:1px solid rgba(140,100,240,0.3)">#${h.bango} ${h.name}(${h.odds}倍) [${h.edgeXReasons[0]?.label||""}]</span>`;});
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  });
+  content.innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// BIAS TABLE
+// ═══════════════════════════════════════
+function renderBiasTable(){
+  const biasColor=b=>b==="内・逃げ先行有利"?"#1a4a8a":b==="外・差し有利"?"#8a3a10":b==="内・差し有利"?"#6a40c0":"#0a7a2a";
+  let html=`<thead><tr><th style="text-align:left">競馬場</th><th>芝/ダ</th><th>1-2日目</th><th>3-4日目</th><th>5-6日目</th><th>7日目〜</th><th style="text-align:left">特徴</th></tr></thead><tbody>`;
+  Object.entries(COURSE_BIAS_DB).forEach(([name,data])=>{
+    [["芝",data.芝],["ダ",data.ダ]].forEach(([type,bias])=>{
+      const isCur=name===state.course&&type===(state.trackType==="ダ"?"ダ":"芝");
+      html+=`<tr style="${isCur?"background:#eef7f0;font-weight:700":""}">
+        <td style="font-weight:${isCur?900:400};color:${isCur?"#0d5a20":"#1a3a2a"}">${name}${isCur?" ◀":""}</td>
+        <td style="color:#3a6a4a">${type}</td>`;
+      ["early","mid","late","final"].forEach(k=>{
+        const isCurDay=isCur&&getDayCat(state.kaisaiDay)===k;
+        html+=`<td style="${isCurDay?"background:#ddf0e4;font-weight:900":""}"><span style="color:${biasColor(bias[k])}">${bias[k]}</span></td>`;
+      });
+      html+=`<td style="font-size:10px;color:#3a6a4a">${type==="芝"?data.note:""}</td></tr>`;
+    });
+  });
+  html+=`</tbody>`;
+  document.getElementById("bias-table").innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// WEIGHTS TABLE
+// ═══════════════════════════════════════
+function renderWeightsTable(){
+  const cat=getDistCat(state.distance);
+  document.getElementById("weights-cat-label").textContent=`現在: ${DIST_LABEL[cat]}（${state.distance}m）`;
+  const cats=Object.keys(DIST_LABEL);
+  let html=`<thead><tr><th style="text-align:left">分析項目</th>`;
+  cats.forEach(k=>{html+=`<th style="color:${k===cat?"#3ddb6a":"#8ad4a0"};background:${k===cat?"rgba(26,122,58,0.2)":"transparent"};font-weight:${k===cat?900:600}">${DIST_LABEL[k]}</th>`;});
+  html+=`</tr></thead><tbody>`;
+  Object.entries(W_LABEL).forEach(([k,label])=>{
+    html+=`<tr><td><span class="w-dot" style="background:${W_COLOR[k]}"></span><span style="color:#1a3a2a">${label}</span></td>`;
+    cats.forEach(dc=>{html+=`<td style="background:${dc===cat?"rgba(26,122,58,0.06)":"transparent"}"><b style="color:${dc===cat?W_COLOR[k]:"#3a6a4a"};font-size:13px">${WEIGHTS[dc][k]}%</b></td>`;});
+    html+=`</tr>`;
+  });
+  html+=`</tbody>`;
+  document.getElementById("w-table").innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════
+function exportCSV(){
+  const hdr="順位,馬番,馬名,印,スコア,人気,単勝オッズ,期待値指数,エッジX,持ち時計,上り3F,重賞実績,コース適性,脚質,騎手,乗り替わり,直近着,近5best\n";
+  const rows=results.map((h,i)=>
+    `${i+1},${h.bango},${h.name},${h.rank.short},${h.total},${h.ninki??""},${h.odds??""},${h.expectedValue??""},${h.edgeX?"★":""},${h.bestTime||""},${h.bestAgari||""},${h.gradeBonusScore},${h.courseAptScore}(${h.courseAptLabel}),${h.style},${h.jockey},${h.rcLabel},${h.recentChaku<=18?h.recentChaku+"着":""},${h.best5Chaku<=18?h.best5Chaku+"着":""}`
+  ).join("\n");
+  const blob=new Blob(["\uFEFF"+hdr+rows],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`${state.raceName||"分析"}_v8.csv`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// ═══════════════════════════════════════
+// COPY BETS
+// ═══════════════════════════════════════
+async function copyBets(){
+  const eff=state.manualBias||getAutoBias(state.course,state.trackType,state.kaisaiDay).bias;
+  const lines=[
+    `【${state.raceName||"買い目"}】v8.0 戦略買い目`,
+    `バイアス: ${eff} / 馬場: ${state.cond} / グレード: ${raceGrade.grade}`,
+    "",
+    ...ranked.filter(h=>h.edgeX).map(h=>`💎 エッジX: #${h.bango} ${h.name}(${h.odds}倍) 期待値:${h.expectedValue} [${h.edgeXReasons.map(r=>r.label).join("/")}]`),
+    "",
+    ...strategicBets.map(b=>`【${b.type}】${b.label} 信頼度:${b.conf} ※${b.reason}`),
+  ].join("\n");
+  const ok=await copyToClipboard(lines);
+  flash(ok?"📋 コピーしました":"コピー失敗",!ok);
+}
+
+// ═══════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════
+document.getElementById("sel-day").addEventListener("change",function(){
+  state.kaisaiDay=this.value;renderBiasUI();if(state.horses.length) recompute();
+});
+document.getElementById("sel-cond").addEventListener("change",function(){
+  state.cond=this.value;if(state.horses.length) recompute();
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+renderBiasUI();
+renderBiasTable();
+renderWeightsTable();
+</script>
+</body>
+</html>
