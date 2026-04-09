@@ -189,6 +189,7 @@ label.ls{display:block;font-size:11px;color:#0d5a20;letter-spacing:2px;margin-bo
     <button class="tab-btn inactive" onclick="switchTab('bets')">🎯 戦略買い目</button>
     <button class="tab-btn inactive" onclick="switchTab('bias')">🏟 バイアス</button>
     <button class="tab-btn inactive" onclick="switchTab('weights')">⚖️ 重み</button>
+    <button class="tab-btn inactive" onclick="switchTab('results')">🏁 結果照合</button>
   </div>
 
   <!-- IMPORT TAB -->
@@ -262,6 +263,25 @@ label.ls{display:block;font-size:11px;color:#0d5a20;letter-spacing:2px;margin-bo
     <div class="sec-title">距離別 重み付け一覧</div>
     <div id="weights-cat-label" style="font-size:12px;color:#2a5a3a;margin-top:3px;margin-bottom:16px"></div>
     <div class="overflow-x"><table class="w-table" id="w-table"></table></div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div id="tab-results" class="tab-content card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div>
+        <div class="sec-sub">RESULT MATCHING</div>
+        <div class="sec-title">🏁 結果照合</div>
+        <div class="sec-desc">結果テキストを読み込んで各レースタブに結果を反映</div>
+      </div>
+    </div>
+    <div class="file-area">
+      <label class="ls">結果ファイル（TARGETの結果集計・配当一覧テキスト）</label>
+      <input type="file" accept=".txt,.csv" id="result-file" style="color:#1a3a2a;font-size:13px;width:100%">
+    </div>
+    <div style="text-align:center;margin-bottom:16px">
+      <button class="bs" id="result-btn" onclick="handleResultFile()" style="padding:11px 40px;font-size:15px">🏁 結果を読み込んで照合</button>
+    </div>
+    <div id="result-status"></div>
   </div>
 
   <div class="footer">━━ KEIBA ANALYSIS v8.0 ━━</div>
@@ -462,7 +482,7 @@ function parseShutsubaCSV(text){
     if(!raceNo) raceNo=(cols[2]||"").trim();  // cols[2] = R番号
     const bango=(cols[3]||"").trim(),name=(cols[7]||"").trim(),jockey=(cols[10]||"").trim();
     const waku=(cols[22]||"").trim();
-    const ninki=parseInt((cols[25]||"").trim())||null;
+    const ninki=parseInt((cols[29]||"").trim())||null;
     const odds=parseFloat((cols[30]||"").trim())||null;
     if(name) entries[name]={bango,jockey,waku,ninki,odds};
   }
@@ -573,7 +593,7 @@ function switchTab(tab){
   document.querySelectorAll(".tab-btn").forEach(el=>{el.classList.remove("active");el.classList.add("inactive");});
   document.getElementById(`tab-${tab}`).classList.add("active");
   const tabBtns=document.querySelectorAll(".tab-btn");
-  const tabNames=["import","result","edgeX","bets","bias","weights"];
+  const tabNames=["import","result","edgeX","bets","bias","weights","results"];
   const idx=tabNames.indexOf(tab);
   if(idx>=0){tabBtns[idx].classList.add("active");tabBtns[idx].classList.remove("inactive");}
   if(tab==="bias") renderBiasTable();
@@ -729,7 +749,12 @@ function renderResult(){
   const g=raceGrade;
   const displayName=getRaceDisplayName(state.raceName,state.raceNo,state.course);
   const raceNoLabel=state.raceNo?`${state.course} ${state.raceNo}R `:"";
+  // 現在のタブの結果データを取得
+  const activeTab = raceTabs.find(t=>t.id===activeRaceId);
+  const resultBadge = activeTab?.resultData ? getResultBadgeHtml(activeTab.resultData) : '';
+
   let html=`
+  ${resultBadge}
   <div class="result-header">
     <div>
       <div class="sec-sub">ANALYSIS RESULT</div>
@@ -927,7 +952,7 @@ function renderRaceTabs(){
       border:2px solid ${isActive?"#3ddb6a":"#8ac4a0"};border-bottom:${isActive?"2px solid #1a7a3a":"none"};
       margin-bottom:${isActive?"0":"-2px"}" onclick="switchRaceTab(${tab.id})">
       <span style="color:${isActive?g.gradeColor+"dd":g.gradeColor};margin-right:4px;font-size:12px">${g.grade}</span>
-      ${tab.displayName}
+      ${tab.displayName}${tab.resultData?"  🏁":""}
       <span style="margin-left:8px;opacity:0.6;cursor:pointer" onclick="event.stopPropagation();removeRaceTab(${tab.id})">✕</span>
     </div>`;
   }).join("");
@@ -1016,6 +1041,158 @@ function renderWeightsTable(){
   });
   html+=`</tbody>`;
   document.getElementById("w-table").innerHTML=html;
+}
+
+
+// ═══════════════════════════════════════
+// 結果照合機能（既存コードに影響なし）
+// ═══════════════════════════════════════
+
+// 結果データ保存用
+let raceResults = {}; // key: "阪神_11" -> {1着,2着,3着,payouts}
+
+function parseResultText(text){
+  const lines = text.split(/\r?\n/);
+  const parsed = {};
+  let current = null;
+
+  for(let line of lines){
+    line = line.trimEnd();
+    // レース行: "中山 1R ..." or "中山10R ..."
+    const m = line.match(/^(\S+?)\s*(\d+)R\s+.+?\s{2,}\S+\s+\d+頭(.*)/);
+    if(m){
+      const rest = m[3];
+      const nums = (rest.match(/\d+/g)||[]);
+      current = {
+        course: m[1], raceNo: m[2],
+        '1着': nums[0]||'', '2着': nums[1]||'', '3着': nums[2]||'',
+        payouts: {}
+      };
+      parsed[`${m[1]}_${m[2]}`] = current;
+      continue;
+    }
+    if(!current || !line.startsWith(' ')) continue;
+    // 払戻行（行頭スペース必須）
+    if(/^\s+単勝/.test(line) && !/馬単/.test(line)){
+      const ms=[...line.matchAll(/\((\d+)\)\s+([\d,]+)円/g)];
+      if(ms.length) current.payouts.tan={num:ms[0][1],pay:ms[0][2]};
+    } else if(/^\s+複勝/.test(line)){
+      const ms=[...line.matchAll(/\((\d+)\)\s+([\d,]+)円/g)];
+      if(ms.length) current.payouts.fuku=ms.slice(0,3).map(m=>[m[1],m[2]]);
+    } else if(/^\s+馬連/.test(line)){
+      const m2=line.match(/\(([^)]+)\)\s+([\d,]+)円/);
+      if(m2) current.payouts.umaren={combo:m2[1],pay:m2[2]};
+    } else if(/^\s+馬単/.test(line)){
+      const m2=line.match(/\(([^)]+)\)\s+([\d,]+)円/);
+      if(m2) current.payouts.umatan={combo:m2[1],pay:m2[2]};
+    } else if(/^\s+３連複/.test(line)){
+      const m2=line.match(/\(([^)]+)\)\s+([\d,]+)円/);
+      if(m2) current.payouts.sanfuku={combo:m2[1],pay:m2[2]};
+    } else if(/^\s+３連単/.test(line)){
+      const m2=line.match(/\(([^)]+)\)\s+([\d,]+)円/);
+      if(m2) current.payouts.santan={combo:m2[1],pay:m2[2]};
+    }
+  }
+  return parsed;
+}
+
+async function handleResultFile(){
+  const file = document.getElementById('result-file').files[0];
+  if(!file){ flash('結果ファイルを選択してください',true); return; }
+  const btn = document.getElementById('result-btn');
+  btn.textContent='⏳ 読み込み中...'; btn.disabled=true;
+  try{
+    const text = await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=e=>res(e.target.result);
+      r.onerror=rej;
+      r.readAsText(file,'Shift-JIS');
+    });
+    raceResults = parseResultText(text);
+    const count = Object.keys(raceResults).length;
+
+    // 各レースタブに結果を反映
+    let matched=0;
+    for(const tab of raceTabs){
+      const key=`${tab.course}_${tab.raceNo}`;
+      if(raceResults[key]){
+        tab.resultData = raceResults[key];
+        matched++;
+      }
+    }
+
+    // 結果ステータス表示
+    const statusEl = document.getElementById('result-status');
+    const matchedTabs = raceTabs.filter(t=>t.resultData);
+    let html = `<div style="background:#eef7f0;border:2px solid #1a7a3a;border-radius:10px;padding:14px 18px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#0d5a20;margin-bottom:8px">✓ ${count}レースの結果を読み込みました（${matched}レース照合済み）</div>
+      <div style="font-size:11px;color:#2a5a3a">分析済みレースタブに結果が反映されました。タブをクリックして確認してください。</div>
+    </div>`;
+
+    // 読み込んだ全レース一覧
+    html += `<div style="font-size:11px;font-weight:700;color:#0d5a20;margin-bottom:6px">読み込んだ結果一覧</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:4px;">`;
+    for(const[key,r] of Object.entries(raceResults)){
+      const p=r.payouts;
+      const isMatched = raceTabs.some(t=>`${t.course}_${t.raceNo}`===key);
+      html += `<div style="padding:7px 12px;border-radius:7px;background:${isMatched?'#eef7f0':'#f5f5f0'};border:1px solid ${isMatched?'#1a7a3a':'#cccccc'};display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:${isMatched?'#0d5a20':'#6a6a6a'};min-width:60px">${r.course} ${r.raceNo}R</span>
+        <span style="font-size:12px;font-weight:900;color:#cc2222">🥇${r['1着']}番</span>
+        <span style="font-size:12px;font-weight:900;color:#c07010">🥈${r['2着']}番</span>
+        <span style="font-size:12px;font-weight:900;color:#8a7a00">🥉${r['3着']}番</span>
+        ${p.tan?`<span style="font-size:11px;color:#1a3a2a">単勝 <b>${p.tan.pay}円</b></span>`:''}
+        ${p.umaren?`<span style="font-size:11px;color:#1a3a2a">馬連 <b>${p.umaren.pay}円</b></span>`:''}
+        ${p.santan?`<span style="font-size:11px;color:#1a3a2a">3連単 <b>${p.santan.pay}円</b></span>`:''}
+        ${isMatched?'<span style="font-size:10px;color:#0a7a2a;font-weight:700">✓ 照合済み</span>':''}
+      </div>`;
+    }
+    html += `</div>`;
+    statusEl.innerHTML = html;
+
+    // 照合済みタブのrenderRaceTabsを更新（結果バッジを反映）
+    renderRaceTabs();
+
+    // 現在表示中のタブに結果があれば分析結果も更新
+    if(activeRaceId){
+      const activeTab = raceTabs.find(t=>t.id===activeRaceId);
+      if(activeTab?.resultData) renderResult();
+    }
+
+    flash(`✓ ${count}レース読込・${matched}レース照合完了`);
+  }catch(e){ flash('読み込みエラー: '+e.message, true); }
+  btn.textContent='🏁 結果を読み込んで照合'; btn.disabled=false;
+}
+
+// 結果バッジHTML生成（renderResultから呼び出す）
+function getResultBadgeHtml(resultData){
+  if(!resultData) return '';
+  const p = resultData.payouts;
+  const fuku = p.fuku||[];
+  return `<div style="background:#0d3d20;border-radius:10px;padding:14px 18px;margin-bottom:16px;color:#fff">
+    <div style="font-size:11px;letter-spacing:3px;color:#4a9a60;margin-bottom:8px">RACE RESULT</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6ab87a">1着</div>
+        <div style="font-size:28px;font-weight:900;color:#ffd700">${resultData['1着']}番</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6ab87a">2着</div>
+        <div style="font-size:28px;font-weight:900;color:#c0c0c0">${resultData['2着']}番</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6ab87a">3着</div>
+        <div style="font-size:28px;font-weight:900;color:#cd7f32">${resultData['3着']}番</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px">
+      ${p.tan?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">単勝</span> <b>${p.tan.num}番 ${p.tan.pay}円</b></div>`:''}
+      ${fuku.length?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">複勝</span> <b>${fuku.map(f=>f[0]+'番'+f[1]+'円').join(' / ')}</b></div>`:''}
+      ${p.umaren?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">馬連</span> <b>${p.umaren.combo} ${p.umaren.pay}円</b></div>`:''}
+      ${p.umatan?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">馬単</span> <b>${p.umatan.combo} ${p.umatan.pay}円</b></div>`:''}
+      ${p.sanfuku?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">3連複</span> <b>${p.sanfuku.combo} ${p.sanfuku.pay}円</b></div>`:''}
+      ${p.santan?`<div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px"><span style="color:#6ab87a">3連単</span> <b>${p.santan.combo} ${p.santan.pay}円</b></div>`:''}
+    </div>
+  </div>`;
 }
 
 // ═══════════════════════════════════════
