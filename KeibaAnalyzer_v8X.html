@@ -915,9 +915,14 @@ function renderBets(){
 function saveToRaceTab(){
   if(!ranked.length) return;
   const displayName=getRaceDisplayName(state.raceName,state.raceNo,state.course);
-  const tabState={...state};  // stateのスナップショット
+  const tabState={...state};
+
+  // 常にcourse+raceNoで既存タブを検索（activeRaceIdに依存しない）
+  const existIdx=raceTabs.findIndex(t=>t.course===state.course && t.raceNo===state.raceNo);
+  const existId=existIdx>=0 ? raceTabs[existIdx].id : null;
+
   const entry={
-    id:activeRaceId||Date.now(),
+    id: existId || Date.now(),
     displayName,
     raceNo:state.raceNo,
     course:state.course,
@@ -926,17 +931,15 @@ function saveToRaceTab(){
     strategicBets:[...strategicBets],
     results:[...results],
     tabState,
+    resultData: existIdx>=0 ? raceTabs[existIdx].resultData : undefined,
   };
-  const idx=raceTabs.findIndex(t=>t.id===activeRaceId);
-  if(idx>=0){
-    raceTabs[idx]=entry;
+
+  if(existIdx>=0){
+    raceTabs[existIdx]=entry;  // 同じレースなら上書き
   } else {
-    // 新規タブ: 同じ会場+R番号なら上書き（レース名が同じでも別レースは別タブ）
-    const dupIdx=raceTabs.findIndex(t=>t.course===state.course && t.raceNo===state.raceNo);
-    if(dupIdx>=0){entry.id=raceTabs[dupIdx].id;raceTabs[dupIdx]=entry;}
-    else{raceTabs.push(entry);}
-    activeRaceId=entry.id;
+    raceTabs.push(entry);      // 新しいレースなら追加
   }
+  activeRaceId=entry.id;
   renderRaceTabs();
 }
 
