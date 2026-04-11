@@ -434,10 +434,9 @@ function getRankByPos(pos){
 }
 // レース表示名を生成（タイトル無しでもR番号で識別）
 function getRaceDisplayName(raceName, raceNo, course){
-  if(raceName) return raceName;
-  if(raceNo && course) return `${course}${raceNo}R`;
-  if(raceNo) return `${raceNo}R`;
-  return "未設定";
+  if(raceNo && course) return `${course}${raceNo}R${raceName?" "+raceName:""}`;
+  if(raceNo) return `${raceNo}R${raceName?" "+raceName:""}`;
+  return raceName||"未設定";
 }
 
 // ═══════════════════════════════════════
@@ -932,8 +931,8 @@ function saveToRaceTab(){
   if(idx>=0){
     raceTabs[idx]=entry;
   } else {
-    // 新規タブ: displayNameが同じなら上書き
-    const dupIdx=raceTabs.findIndex(t=>t.displayName===displayName);
+    // 新規タブ: 同じ会場+R番号なら上書き（レース名が同じでも別レースは別タブ）
+    const dupIdx=raceTabs.findIndex(t=>t.course===state.course && t.raceNo===state.raceNo);
     if(dupIdx>=0){entry.id=raceTabs[dupIdx].id;raceTabs[dupIdx]=entry;}
     else{raceTabs.push(entry);}
     activeRaceId=entry.id;
