@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競馬3軸分析 v1.0</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f5f0e8;font-family:'Georgia','Times New Roman',serif;color:#1a2e1a;min-height:100vh;}
+select,input,button{font-family:inherit;}
+select option{background:#eef7f0;color:#1a2e1a;}
+#header{text-align:center;background:linear-gradient(180deg,#0d3d20 0%,#0a2e18 100%);border-bottom:3px solid #1a7a3a;padding:12px 8px 16px;}
+#header .sub{font-size:9px;letter-spacing:6px;color:#4a9a60;margin-bottom:4px;}
+#header h1{font-size:clamp(18px,4vw,32px);font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6),0 0 20px rgba(26,122,58,.4);letter-spacing:2px;}
+#header .desc{font-size:10px;color:#6ab87a;margin-top:4px;letter-spacing:3px;font-weight:600;}
+#flash{margin-top:8px;display:none;border-radius:6px;padding:5px 16px;font-size:13px;font-weight:700;}
+#flash.ok{background:rgba(26,180,80,.18);border:2px solid #1ab450;color:#4ecf80;}
+#flash.err{background:rgba(255,78,78,.14);border:2px solid #ff4e4e;color:#ff6e6e;}
+#app{max-width:1100px;margin:0 auto;padding:14px 8px;}
+.config-card{background:#fffdf5;border:2px solid #1a7a3a;border-radius:12px;padding:14px 18px;margin-bottom:14px;}
+.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end;margin-bottom:12px;}
+label.ls{display:block;font-size:11px;color:#0d5a20;letter-spacing:2px;margin-bottom:5px;text-transform:uppercase;font-weight:900;}
+.is{background:#eef7f0;border:2px solid #1a7a3a;border-radius:6px;color:#1a2e1a;padding:7px 9px;font-size:12px;width:100%;outline:none;}
+.bs{background:#1a7a3a;border:2px solid #3ddb6a;border-radius:7px;color:#fff;padding:7px 13px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:700;}
+.bs:hover{background:#236b40;}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.bias-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;padding:10px 14px;}
+.bias-info{font-size:11px;color:#1a5a2a;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700;}
+.bias-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.bias-btn{padding:6px 14px;border-radius:6px;border:2px solid;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;}
+.bias-btn.active{background:#1a7a3a;color:#fff;border-color:#1a7a3a;}
+.bias-btn.inactive{background:#ddf0e4;color:#1a5a2a;border-color:#8ac4a0;}
+.bias-note{font-size:10px;color:#3a6a4a;margin-top:5px;}
+#tabs{display:flex;gap:3px;flex-wrap:wrap;}
+.tab-btn{padding:9px 14px;border-radius:7px 7px 0 0;border:none;cursor:pointer;font-family:inherit;font-size:12px;border-bottom:3px solid transparent;}
+.tab-btn.active{background:#1a7a3a;color:#fff;border-bottom-color:#3ddb6a;font-weight:900;}
+.tab-btn.inactive{background:#e8e4d8;color:#3a5a3a;font-weight:500;}
+.card{background:#fffdf5;border:2px solid #1a7a3a;border-radius:0 12px 12px 12px;padding:18px;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+.sec-sub{font-size:10px;letter-spacing:4px;color:#2a6a3a;}
+.sec-title{font-size:18px;color:#0d5a20;font-weight:900;margin-bottom:4px;}
+.sec-desc{font-size:12px;color:#2a5a3a;font-weight:600;margin-bottom:14px;}
+.import-box{background:#eef7f0;border-radius:10px;padding:14px 18px;margin-bottom:14px;font-size:12px;line-height:2;color:#1a3a2a;border:1px solid #1a7a3a;}
+.file-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:10px;padding:14px 18px;margin-bottom:12px;}
+.feature-box{padding:12px 16px;background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;font-size:12px;color:#1a4a2a;line-height:1.9;margin-top:16px;}
+.sort-area{background:#eef7f0;border:2px solid #1a7a3a;border-radius:8px;padding:10px 12px;margin-bottom:14px;}
+.sort-label{font-size:11px;color:#0d5a20;margin-bottom:7px;letter-spacing:2px;font-weight:900;}
+.sort-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.sort-btn{padding:5px 11px;border-radius:6px;border:2px solid;cursor:pointer;font-family:inherit;font-size:11px;}
+.sort-btn.active{background:#1a7a3a;color:#fff;border-color:#3ddb6a;font-weight:900;}
+.sort-btn.inactive{background:#ddf0e4;color:#1a5a2a;border-color:#8ac4a0;font-weight:500;}
+.sort-note{font-size:10px;color:#2a6a3a;margin-top:5px;}
+.horse-list{display:flex;flex-direction:column;gap:6px;}
+.horse-card{border-radius:10px;padding:11px 13px;}
+.horse-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.horse-num{font-size:14px;font-weight:900;width:18px;}
+.horse-rank{font-size:13px;font-weight:900;min-width:68px;}
+.horse-name{flex:1;font-size:14px;font-weight:900;color:#0a1a0a;}
+.horse-style{font-size:10px;margin-left:6px;font-weight:700;}
+.horse-right{font-size:11px;text-align:right;}
+.horse-jockey{color:#1a3a2a;font-weight:700;}
+.horse-trainer{font-size:10px;color:#3a6a4a;}
+.horse-score{font-size:22px;font-weight:900;text-align:right;}
+.score-bar{height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden;margin-top:7px;}
+.score-bar-inner{height:100%;border-radius:3px;}
+.score-breakdown{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+.score-chip{font-size:10px;background:#eef7f0;border:1px solid #8ac4a0;border-radius:4px;padding:2px 6px;}
+.horse-detail{display:flex;gap:10px;margin-top:5px;font-size:11px;color:#2a5a3a;flex-wrap:wrap;font-weight:600;}
+.blood-box{background:rgba(140,100,240,.06);border:1px solid rgba(140,100,240,.3);border-radius:8px;padding:10px 12px;margin-top:7px;}
+.blood-sire{font-size:14px;font-weight:900;color:#4a20a0;margin-bottom:3px;}
+.blood-dam{font-size:12px;font-weight:700;color:#8a50c0;margin-bottom:2px;}
+.blood-note{font-size:10px;color:#6a6a6a;line-height:1.7;margin-top:4px;}
+.blood-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.btag{font-size:10px;border-radius:4px;padding:2px 7px;font-weight:700;}
+.past-box{margin-top:7px;font-size:10px;color:#1a3a2a;background:rgba(26,122,58,.06);border-radius:6px;padding:6px 10px;line-height:2;}
+.bias-table{width:100%;border-collapse:collapse;font-size:12px;}
+.bias-table th{background:#0d3d20;color:#fff;font-weight:900;padding:8px 10px;text-align:center;}
+.bias-table th:first-child{text-align:left;}.bias-table td{padding:7px 10px;text-align:center;border-bottom:1px solid rgba(0,0,0,.06);}
+.bias-table td:first-child{text-align:left;}.bias-table tr:hover{background:#f0faf2;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;margin-bottom:10px;}
+.ldot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;}
+.overflow-x{overflow-x:auto;}
+.empty{text-align:center;padding:48px 0;color:#3a6a4a;}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.footer{text-align:center;margin-top:20px;font-size:9px;color:#3a7a4a;letter-spacing:4px;padding-bottom:20px;}
+@media print{button,select,input[type=file]{display:none!important;}body{background:white!important;}}
+</style>
+</head>
+<body>
+<div id="header">
+  <div class="sub">FULLSET CSV TRIPLE AXIS ANALYSIS v1.0</div>
+  <h1>競馬3軸分析 v1.0</h1>
+  <div class="desc">ラップ(時計) ／ 上り3ハロン ／ 血統 × バイアス統合分析</div>
+  <div id="flash"></div>
+</div>
+<div id="app">
+  <div class="config-card">
+    <div class="config-grid">
+      <div><label class="ls">競馬場 <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-course"><option>阪神</option><option>東京</option><option>中山</option><option>京都</option><option>中京</option><option>新潟</option><option>福島</option><option>小倉</option><option>札幌</option><option>函館</option></select></div>
+      <div><label class="ls">芝/ダ <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-type"><option value="芝">芝</option><option value="ダ">ダート</option></select></div>
+      <div><label class="ls">距離(m) <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-dist"><option>1000</option><option>1200</option><option>1400</option><option selected>1600</option><option>1800</option><option>2000</option><option>2200</option><option>2400</option><option>2500</option><option>3000</option><option>3200</option></select></div>
+      <div><label class="ls">馬場状態 <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-cond"><option>良</option><option>稍重</option><option>重</option><option>不良</option></select></div>
+      <div><label class="ls">開催何日目 <span style="color:#c07010;font-size:9px">手動</span></label>
+        <select class="is" id="sel-day"><option value="1">1日目</option><option value="2">2日目</option><option value="3">3日目</option><option value="4">4日目</option><option value="5">5日目</option><option value="6">6日目</option><option value="7">7日目</option><option value="8">8日目</option></select></div>
+      <div class="btn-row" id="action-btns" style="display:none">
+        <button class="bs" onclick="exportCSV()">⬇CSV</button>
+        <button class="bs" onclick="window.print()">🖨</button>
+      </div>
+    </div>
+    <div class="bias-area">
+      <div class="bias-info" id="bias-info"></div>
+      <div class="bias-btns" id="bias-btns"></div>
+      <div class="bias-note" id="bias-note"></div>
+    </div>
+  </div>
+  <div id="tabs">
+    <button class="tab-btn active" onclick="switchTab('import')">📂 CSV読込</button>
+    <button class="tab-btn inactive" onclick="switchTab('agari')">🔥 上り3F分析</button>
+    <button class="tab-btn inactive" onclick="switchTab('lap')">⏱ ラップ分析</button>
+    <button class="tab-btn inactive" onclick="switchTab('blood')">🧬 血統分析</button>
+    <button class="tab-btn inactive" onclick="switchTab('bias')">🏟 バイアス表</button>
+  </div>
+  <div id="tab-import" class="tab-content card active">
+    <div class="sec-sub">STEP 1 — CSV読込</div>
+    <div class="sec-title">フルセットCSVを読み込む</div>
+    <div class="import-box" style="margin-top:12px">
+      <b style="color:#0d5a20">対応ファイル（1ファイルのみ）</b><br>
+      TARGET Frontier JV → 出馬表分析 → 前走読 → 出力 →「全馬全成績CSV形式」→ <b style="color:#c07010">「成績フルセットデータ」</b><br>
+      <span style="font-size:11px;color:#6a6a6a">※ ラップ・上り3F・過去走成績・血統をすべて含む縦展開形式（1頭1過去走＝1行）</span>
+    </div>
+    <div class="file-area">
+      <label class="ls">フルセットCSV <span style="color:#cc2222">必須</span></label>
+      <input type="file" accept=".csv" id="fullset-file" style="color:#1a3a2a;font-size:13px;width:100%">
+    </div>
+    <div style="text-align:center">
+      <button class="bs" id="analyze-btn" onclick="handleFile()" style="padding:13px 48px;font-size:16px">🔍 CSV解析して分析開始</button>
+    </div>
+    <div class="feature-box">
+      <b style="color:#0d5a20">3軸分析の内容：</b><br>
+      <b style="color:#0a7a5a">🔥 上り3F × バイアス</b>　過去走末脚データ × 脚質推定 × トラックバイアス適性を三重評価<br>
+      <b style="color:#c07010">⏱ ラップ(時計) × バイアス</b>　距離・馬場補正スピード指数 × 先行/差し適性 × バイアス一致度<br>
+      <b style="color:#6a40c0">🧬 血統 × バイアス</b>　父馬・母父の距離/馬場/脚質適性をバイアスと照合して評価
+    </div>
+  </div>
+  <div id="tab-agari" class="tab-content card">
+    <div class="sec-sub">AXIS 1 — CLOSING SPEED × BIAS</div>
+    <div class="sec-title">🔥 上り3ハロン × バイアス分析</div>
+    <div class="sec-desc">過去走の末脚データ・脚質推定・トラックバイアス適性を統合評価</div>
+    <div id="agari-content"><div class="empty"><div class="empty-icon">🔥</div>CSVを読み込んでください</div></div>
+  </div>
+  <div id="tab-lap" class="tab-content card">
+    <div class="sec-sub">AXIS 2 — SPEED FIGURE × BIAS</div>
+    <div class="sec-title">⏱ ラップ(時計) × バイアス分析</div>
+    <div class="sec-desc">距離・馬場補正スピード指数と先行/差し適性・バイアス一致度を評価</div>
+    <div id="lap-content"><div class="empty"><div class="empty-icon">⏱</div>CSVを読み込んでください</div></div>
+  </div>
+  <div id="tab-blood" class="tab-content card">
+    <div class="sec-sub">AXIS 3 — BLOODLINE × BIAS</div>
+    <div class="sec-title">🧬 血統 × バイアス分析</div>
+    <div class="sec-desc">父馬・母父の距離/馬場/脚質適性をバイアスと照合して評価（DBなし父馬は参考値）</div>
+    <div id="blood-content"><div class="empty"><div class="empty-icon">🧬</div>CSVを読み込んでください</div></div>
+  </div>
+  <div id="tab-bias" class="tab-content card">
+    <div class="sec-sub">TRACK BIAS DATABASE</div>
+    <div class="sec-title" style="margin-bottom:16px">各競馬場のバイアス傾向</div>
+    <div class="overflow-x"><table class="bias-table" id="bias-table-el"></table></div>
+  </div>
+  <div class="footer">━━ KEIBA TRIPLE AXIS ANALYSIS v1.0 ━━</div>
+</div>
+<script>
+// ══════════════════════════════════════════════
+// 競馬3軸分析 v1.0 — JavaScript
+// ══════════════════════════════════════════════
+
+const BIAS_KEYS = ["内・逃げ先行有利","外・先行有利","フラット","内・差し有利","外・差し有利"];
+const COURSE_BIAS_DB = {
+  "東京":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"直線長く開催後半は外差し台頭。開幕は内先行有利。"},
+  "中山":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"急坂・小回りで前残り。開幕は内先行が圧倒的有利。"},
+  "阪神":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"外回りは差しが届きやすい。内回りは前残り傾向。"},
+  "京都":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"淀の坂が影響。内回りは特に先行有利。"},
+  "中京":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"フラット",late:"フラット",final:"フラット"},note:"開幕週は内先行有利・後半は外差し台頭。"},
+  "新潟":{芝:{early:"外・差し有利",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"直線最長。外枠差し馬が常に有利。"},
+  "福島":{芝:{early:"内・逃げ先行有利",mid:"フラット",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"小回りで前残り傾向が強い。"},
+  "小倉":{芝:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"外・差し有利"},ダ:{early:"内・逃げ先行有利",mid:"内・逃げ先行有利",late:"フラット",final:"フラット"},note:"高速馬場で先行馬が止まらない。"},
+  "札幌":{芝:{early:"フラット",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"洋芝で時計がかかる。差し馬が台頭しやすい。"},
+  "函館":{芝:{early:"フラット",mid:"外・差し有利",late:"外・差し有利",final:"外・差し有利"},ダ:{early:"フラット",mid:"フラット",late:"フラット",final:"フラット"},note:"洋芝・小回り。時計がかかると差しも届く。"},
+};
+
+// 脚質別バイアス適合スコア
+const STYLE_BIAS = {
+  "逃げ":  {"内・逃げ先行有利":100,"外・先行有利":78,"フラット":58,"内・差し有利":22,"外・差し有利":15},
+  "先行":  {"内・逃げ先行有利":92,"外・先行有利":96,"フラット":68,"内・差し有利":32,"外・差し有利":26},
+  "中団":  {"内・逃げ先行有利":46,"外・先行有利":56,"フラット":70,"内・差し有利":72,"外・差し有利":68},
+  "差し":  {"内・逃げ先行有利":26,"外・先行有利":33,"フラット":65,"内・差し有利":88,"外・差し有利":84},
+  "追込":  {"内・逃げ先行有利":16,"外・先行有利":22,"フラット":60,"内・差し有利":82,"外・差し有利":96},
+  "不明":  {"内・逃げ先行有利":54,"外・先行有利":56,"フラット":65,"内・差し有利":55,"外・差し有利":54},
+};
+
+// スピード指数パータイム（秒）
+const PAR = {
+  "芝":{
+    1000:{"良":58.5,"稍重":59.5,"重":61.0,"不良":63.0},
+    1200:{"良":69.0,"稍重":70.2,"重":71.8,"不良":73.5},
+    1400:{"良":81.0,"稍重":82.2,"重":83.8,"不良":85.5},
+    1600:{"良":94.5,"稍重":95.8,"重":97.5,"不良":99.5},
+    1800:{"良":107.5,"稍重":109.0,"重":111.0,"不良":113.5},
+    2000:{"良":120.5,"稍重":122.2,"重":124.8,"不良":127.5},
+    2200:{"良":133.0,"稍重":135.2,"重":138.0,"不良":141.5},
+    2400:{"良":145.5,"稍重":148.2,"重":151.5,"不良":155.0},
+    2500:{"良":151.0,"稍重":154.0,"重":157.5,"不良":161.5},
+    3000:{"良":181.0,"稍重":184.5,"重":189.0,"不良":194.5},
+    3200:{"良":193.0,"稍重":197.0,"重":202.0,"不良":208.0},
+  },
+  "ダ":{
+    1000:{"良":59.5,"稍重":60.0,"重":60.5,"不良":61.5},
+    1200:{"良":71.0,"稍重":71.5,"重":72.5,"不良":74.0},
+    1400:{"良":84.0,"稍重":84.8,"重":86.0,"不良":87.5},
+    1600:{"良":97.5,"稍重":98.5,"重":100.0,"不良":102.0},
+    1700:{"良":103.5,"稍重":104.8,"重":106.5,"不良":108.5},
+    1800:{"良":111.0,"稍重":112.5,"重":114.0,"不良":116.5},
+    2100:{"良":130.0,"稍重":131.8,"重":133.5,"不良":136.0},
+    2400:{"良":149.0,"稍重":151.2,"重":154.0,"不良":157.5},
+  }
+};
+
+// 父馬血統データベース
+const SIRE_DB = {
+  "ディープインパクト":{dr:[1600,3200],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":32,"外・先行有利":42,"フラット":70,"内・差し有利":82,"外・差し有利":96},do:"マイル〜長距離",note:"芝中長距離の絶対王者。外差しバイアスで末脚最大発揮。"},
+  "ハーツクライ":{dr:[1800,3200],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":30,"外・先行有利":40,"フラット":68,"内・差し有利":78,"外・差し有利":93},do:"中〜長距離",note:"芝長距離末脚型。洋芝・外回りで真価発揮。"},
+  "ステイゴールド":{dr:[2000,3600],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":33,"外・先行有利":42,"フラット":70,"内・差し有利":78,"外・差し有利":90},do:"中〜長距離",note:"芝長距離タフな条件で底力発揮。根性型。"},
+  "オルフェーヴル":{dr:[1800,2500],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":38,"外・先行有利":45,"フラット":70,"内・差し有利":80,"外・差し有利":88},do:"中距離",note:"芝中長距離末脚一閃型。"},
+  "ゴールドシップ":{dr:[2000,3600],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":30,"外・先行有利":38,"フラット":68,"内・差し有利":78,"外・差し有利":88},do:"長距離",note:"芝長距離・洋芝・重馬場に強い差し追込。"},
+  "ジャスタウェイ":{dr:[1600,2200],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":36,"外・先行有利":44,"フラット":70,"内・差し有利":80,"外・差し有利":90},do:"マイル〜中距離",note:"芝中距離。東京・外回り向きの鋭い末脚。"},
+  "ドゥラメンテ":{dr:[1600,2500],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":38,"外・先行有利":46,"フラット":70,"内・差し有利":80,"外・差し有利":88},do:"マイル〜中距離",note:"芝中長距離末脚型。"},
+  "キズナ":{dr:[1600,2400],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":33,"外・先行有利":40,"フラット":68,"内・差し有利":80,"外・差し有利":92},do:"中距離",note:"芝中長距離差し追込。広いコース向き。"},
+  "スワーヴリチャード":{dr:[1800,2400],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":35,"外・先行有利":42,"フラット":70,"内・差し有利":80,"外・差し有利":88},do:"中距離",note:"芝中距離末脚型。東京・広いコース向き。"},
+  "ブラックタイド":{dr:[1600,2400],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":36,"外・先行有利":44,"フラット":68,"内・差し有利":78,"外・差し有利":88},do:"中距離",note:"ディープ全兄。芝中距離差し系。"},
+  "マンハッタンカフェ":{dr:[2000,3600],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":33,"外・先行有利":40,"フラット":65,"内・差し有利":75,"外・差し有利":85},do:"長距離",note:"芝長距離スタミナ特化型。"},
+  "Galileo":{dr:[1800,3200],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":32,"外・先行有利":40,"フラット":68,"内・差し有利":78,"外・差し有利":90},do:"中〜長距離",note:"欧州芝長距離最強系譜。末脚型。"},
+  "キングカメハメハ":{dr:[1400,2200],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":78,"フラット":82,"内・差し有利":65,"外・差し有利":65},do:"マイル〜中距離",note:"芝ダ兼用。万能型。馬場を問わない先行差し系。"},
+  "エピファネイア":{dr:[1800,2500],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":68,"外・先行有利":65,"フラット":82,"内・差し有利":70,"外・差し有利":74},do:"中距離",note:"芝中距離。先行・差し両対応の万能型産駒。"},
+  "ルーラーシップ":{dr:[1600,2400],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":62,"外・先行有利":68,"フラット":80,"内・差し有利":68,"外・差し有利":72},do:"中距離",note:"芝中距離万能型。先行も差しもこなせる。"},
+  "コントレイル":{dr:[1600,2400],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":65,"外・先行有利":65,"フラット":82,"内・差し有利":70,"外・差し有利":75},do:"マイル〜中距離",note:"芝中距離万能型。先行〜差し幅広く。"},
+  "モーリス":{dr:[1400,2000],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":75,"フラット":82,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"芝マイル〜中距離。先行力高く内小回りも対応。"},
+  "サートゥルナーリア":{dr:[1600,2500],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":75,"フラット":72,"内・差し有利":58,"外・差し有利":48},do:"マイル〜中距離",note:"芝中距離先行型。内回り・小回りで真価発揮。"},
+  "リアルスティール":{dr:[1400,2000],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":72,"フラット":80,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"芝ダ兼用マイル〜中距離万能型。"},
+  "スクリーンヒーロー":{dr:[1800,2500],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":62,"外・先行有利":65,"フラット":78,"内・差し有利":70,"外・差し有利":72},do:"中距離",note:"芝中距離先行差し系。"},
+  "Dubawi":{dr:[1400,2200],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":68,"フラット":82,"内・差し有利":65,"外・差し有利":65},do:"マイル〜中距離",note:"欧州芝ダ兼用万能型。高い基礎能力。"},
+  "Frankel":{dr:[1200,1800],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":75,"外・先行有利":78,"フラット":82,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"欧州芝マイル〜中距離。高い基礎能力。"},
+  "ロードカナロア":{dr:[1000,1600],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":88,"外・先行有利":82,"フラット":68,"内・差し有利":40,"外・差し有利":32},do:"スプリント〜マイル",note:"芝スプリント王者。先行力の塊。高速馬場最強。"},
+  "ダイワメジャー":{dr:[1200,1800],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":88,"外・先行有利":80,"フラット":68,"内・差し有利":36,"外・差し有利":28},do:"マイル",note:"芝マイル専門先行型。洋芝も得意。"},
+  "キタサンブラック":{dr:[1800,3200],sf:"芝",st:"逃げ先行",bias:{"内・逃げ先行有利":92,"外・先行有利":85,"フラット":65,"内・差し有利":30,"外・差し有利":25},do:"中〜長距離",note:"芝中長距離逃げ先行型。内回りで圧倒。"},
+  "イスラボニータ":{dr:[1400,1800],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":78,"フラット":68,"内・差し有利":38,"外・差し有利":30},do:"マイル",note:"芝マイル先行型。"},
+  "No Nay Never":{dr:[1000,1400],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":88,"外・先行有利":82,"フラット":65,"内・差し有利":33,"外・差し有利":28},do:"スプリント",note:"欧州芝スプリント特化。先行圧倒型。"},
+  "Dark Angel":{dr:[1000,1600],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":78,"外・先行有利":75,"フラット":72,"内・差し有利":52,"外・差し有利":48},do:"スプリント〜マイル",note:"欧州芝スプリント〜マイル。先行〜差し。"},
+  "Siyouni":{dr:[1200,1600],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":78,"フラット":70,"内・差し有利":40,"外・差し有利":35},do:"マイル",note:"欧州芝マイル先行系。"},
+  "ドレフォン":{dr:[1200,1800],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":80,"外・先行有利":75,"フラット":70,"内・差し有利":42,"外・差し有利":35},do:"マイル",note:"ダートスプリント〜マイル先行型。"},
+  "ヘニーヒューズ":{dr:[1200,1800],sf:"ダ",st:"先行差し",bias:{"内・逃げ先行有利":78,"外・先行有利":72,"フラット":75,"内・差し有利":55,"外・差し有利":50},do:"マイル",note:"ダート先行〜差し。1400〜1800m主体。"},
+  "シニスターミニスター":{dr:[1200,1800],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":85,"外・先行有利":78,"フラット":68,"内・差し有利":40,"外・差し有利":33},do:"スプリント〜マイル",note:"ダート先行特化。"},
+  "ゴールドドリーム":{dr:[1400,2100],sf:"ダ",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":68,"フラット":78,"内・差し有利":60,"外・差し有利":56},do:"中距離",note:"ダート中距離先行〜差し万能。"},
+  "アメリカンファラオ":{dr:[1400,2400],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":68,"フラット":80,"内・差し有利":62,"外・差し有利":65},do:"中距離",note:"芝ダ兼用中距離万能型。"},
+};
+
+// ── State ──
+let horses = [];
+const state = {
+  course:"阪神", trackType:"芝", distance:"1600", cond:"良", kaisaiDay:"1",
+  manualBias:"", sortAgari:"total", sortLap:"total", sortBlood:"total",
+};
+
+// ── Utils ──
+function getDayCat(d){const n=Number(d);return n<=2?"early":n<=4?"mid":n<=6?"late":"final";}
+function getAutoBias(){
+  const db=COURSE_BIAS_DB[state.course];
+  if(!db) return{bias:"フラット",note:""};
+  return{bias:(state.trackType==="ダ"?db.ダ:db.芝)[getDayCat(state.kaisaiDay)],note:db.note};
+}
+function getEffBias(){return state.manualBias||getAutoBias().bias;}
+function getRankByPos(i){
+  if(i===0) return{label:"◎ 本命",short:"◎",color:"#cc2222"};
+  if(i===1) return{label:"○ 対抗",short:"○",color:"#c07010"};
+  if(i===2) return{label:"▲ 単穴",short:"▲",color:"#8a7a00"};
+  if(i===3) return{label:"☆ 特注",short:"☆",color:"#6a40c0"};
+  if(i<=5)  return{label:"△ 連下",short:"△",color:"#0a7a5a"};
+  return{label:"× 消し",short:"×",color:"#6a6a6a"};
+}
+function styleColor(st){
+  return({逃げ:"#cc2222",先行:"#c07010",中団:"#0a7a5a",差し:"#1a5a9a",追込:"#6a40c0",不明:"#6a6a6a"})[st]||"#6a6a6a";
+}
+function getParTime(dist,tt,going){
+  const tbl=PAR[tt]||PAR["芝"];
+  const ds=Object.keys(tbl).map(Number).sort((a,b)=>a-b);
+  let cl=ds[0];for(const d of ds){if(Math.abs(d-dist)<Math.abs(cl-dist)) cl=d;}
+  const row=tbl[cl];if(!row) return null;
+  const base=row[going]||row["良"]||null;if(!base) return null;
+  return base+(dist-cl)*0.068;
+}
+function calcFig(t,dist,tt,going){
+  const par=getParTime(dist,tt,going);
+  if(!par||!t||t<=0) return null;
+  return Math.round((par-t)*10+80);
+}
+function gradeFromName(n){
+  if(!n) return 0;
+  const s=n.replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+  if(/G1|GI/i.test(s)) return 3;if(/G2|GII/i.test(s)) return 2;if(/G3|GIII/i.test(s)) return 1;return 0;
+}
+function normalizeHigh(arr){
+  const v=arr.filter(x=>x!=null&&!isNaN(x));
+  if(v.length<2) return arr.map(()=>62);
+  const mx=Math.max(...v),mn=Math.min(...v);
+  if(mx===mn) return arr.map(x=>x!=null?72:null);
+  return arr.map(x=>x==null?null:Math.round((x-mn)/(mx-mn)*70+30));
+}
+function normalizeLow(arr){
+  const v=arr.filter(x=>x!=null&&!isNaN(x));
+  if(v.length<2) return arr.map(()=>62);
+  const mx=Math.max(...v),mn=Math.min(...v);
+  if(mx===mn) return arr.map(x=>x!=null?72:null);
+  return arr.map(x=>x==null?null:Math.round((mx-x)/(mx-mn)*70+30));
+}
+function flashMsg(msg,isErr=false){
+  const el=document.getElementById("flash");
+  el.textContent=msg;el.className=isErr?"err":"ok";el.style.display="inline-block";
+  setTimeout(()=>{el.style.display="none";},3800);
+}
+
+// ── CSVパーサー ──
+// 列インデックス（0始まり）:
+// 0:年 1:月 2:日 3:回 4:競馬場 5:日 6:R番 7:レース名
+// 9:芝ダ 10:枠 11:距離 12:馬場
+// 13:馬名 14:性 15:齢 16:騎手 17:斤量
+// 18:頭数 19:馬番 20:着順 21:3角位置 22:海外 23:着差 24:4角位置
+// 25:タイム(秒float) 30:人気 32:上り3F 33:馬体重
+// 34:調教師 36:賞金 37:馬ID 41:馬主 42:生産者
+// 43:父 44:母 45:母父
+function parseFullsetCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const groups={};
+  for(const line of lines){
+    const c=line.split(",");
+    if(c.length<46) continue;
+    const year=parseInt(c[0]);
+    if(isNaN(year)||year<10||year>99) continue;
+    const month=parseInt(c[1]),day=parseInt(c[2]);
+    if(month<1||month>12||day<1||day>31) continue;
+    const name=(c[13]||"").trim();
+    if(!name) continue;
+    const venue   =(c[4] ||"").trim();
+    const raceName=(c[7] ||"").trim();
+    const tt      =(c[9] ||"").trim();
+    const dist    =parseInt(c[11])||0;
+    const going   =(c[12]||"").trim();
+    const sex     =(c[14]||"").trim();
+    const age     =parseInt(c[15])||0;
+    const jockey  =(c[16]||"").trim();
+    const wtCarry =parseFloat(c[17])||55;
+    const total   =parseInt(c[18])||0;
+    const pos     =parseInt(c[20])||99;
+    const corner3 =Math.round(parseFloat(c[21])||0);
+    const corner4 =Math.round(parseFloat(c[24])||0);
+    // タイム取得（float秒 or エンコード整数から）
+    let timeS=parseFloat(c[25])||0;
+    if(timeS<=0){
+      const enc=parseInt(c[26])||0;
+      if(enc>0){const m=Math.floor(enc/1000),s=Math.floor((enc%1000)/10),t=enc%10;timeS=m*60+s+t/10;}
+    }
+    const popularity=parseInt(c[30])||null;
+    const agariRaw =parseFloat(c[32])||null;
+    const horseWt  =parseInt(c[33])||0;
+    const trainer  =(c[34]||"").trim();
+    const horseId  =(c[37]||"").trim();
+    const owner    =(c[41]||"").trim();
+    const breeder  =(c[42]||"").trim();
+    const sire     =(c[43]||"").trim();
+    const dam      =(c[44]||"").trim();
+    const bmsire   =(c[45]||"").trim();
+    if(!name||dist<=0) continue;
+    // agariのサニタイズ（25〜46秒の範囲のみ有効）
+    const agari=agariRaw&&agariRaw>24&&agariRaw<48?agariRaw:null;
+    const grade=gradeFromName(raceName);
+    const key=horseId||name;
+    if(!groups[key]) groups[key]={name,sex,age,trainer,owner,breeder,sire,dam,bmsire,horseId,runs:[]};
+    groups[key].runs.push({
+      year:year+2000,month,day,venue,raceName,grade,tt,dist,going,
+      jockey,wtCarry,total,pos,corner3,corner4,
+      timeS:timeS>0?timeS:null,popularity,agari,horseWt
+    });
+  }
+  const arr=Object.values(groups);
+  for(const h of arr){
+    h.runs.sort((a,b)=>{
+      const da=a.year*10000+a.month*100+a.day;
+      const db=b.year*10000+b.month*100+b.day;
+      return db-da;
+    });
+    h.jockey=h.runs[0]?.jockey||h.jockey||"";
+  }
+  return arr;
+}
+
+// ── 脚質推定 ──
+function inferStyle(runs){
+  const ovKW=["海外","香港","UAE","仏","英","米","豪","サウジ"];
+  const valid=runs.filter(r=>r.corner4>0&&r.total>0&&!ovKW.some(k=>(r.venue||"").includes(k)));
+  if(valid.length>0){
+    const recent=valid.slice(0,6);
+    const avg=recent.reduce((s,r)=>s+r.corner4/r.total,0)/recent.length;
+    if(avg<=0.12) return"逃げ";
+    if(avg<=0.30) return"先行";
+    if(avg<=0.55) return"中団";
+    if(avg<=0.78) return"差し";
+    return"追込";
+  }
+  // フォールバック: ポジションとagariから推定
+  const wd=runs.filter(r=>r.agari&&r.pos<=10&&r.total>0).slice(0,6);
+  if(!wd.length) return"不明";
+  const ap=wd.reduce((s,r)=>s+r.pos/r.total,0)/wd.length;
+  const aa=wd.reduce((s,r)=>s+r.agari,0)/wd.length;
+  if(ap<0.25&&aa>34) return"先行";
+  if(ap>0.60&&aa<34) return"差し";
+  if(ap>0.75) return"追込";
+  if(ap<0.30) return"先行";
+  return"中団";
+}
+
+// ── AXIS 1: 上り3F ──
+function computeAgari(h,bias,dist,tt){
+  const d=parseInt(dist);
+  const ovKW=["海外","香港","UAE","仏","英","米","豪"];
+  const dom=h.runs.filter(r=>!ovKW.some(k=>(r.venue||"").includes(k)));
+  const near=dom.filter(r=>r.agari&&r.tt===tt&&Math.abs(r.dist-d)<=400).slice(0,5);
+  const fall=dom.filter(r=>r.agari).slice(0,5);
+  const sample=near.length>=2?near:fall;
+  if(!sample.length) return null;
+  const alist=sample.map(r=>r.agari);
+  const avg=alist.reduce((s,v)=>s+v,0)/alist.length;
+  const best=Math.min(...alist);
+  const vari=alist.length>=3?Math.sqrt(alist.reduce((s,v)=>s+(v-avg)**2,0)/alist.length):null;
+  const consistency=vari!=null?Math.max(20,Math.round(100-vari*18)):65;
+  const g1=dom.filter(r=>r.grade>=3&&r.agari&&r.pos<=3).length;
+  const gradeBonus=g1>=1?8:0;
+  h.style=h.style||inferStyle(h.runs);
+  const bs=(STYLE_BIAS[h.style]||STYLE_BIAS["不明"])[bias]||56;
+  return{avgAgari:avg,bestAgari:best,consistency,gradeBonus,biasScore:bs,sampleCount:sample.length};
+}
+
+function buildAgariRanking(bias){
+  const dist=state.distance,tt=state.trackType;
+  const computed=horses.map(h=>{
+    const r=computeAgari(h,bias,dist,tt);
+    if(!r) return{...h,avgAgari:null,bestAgari:null,consistency:50,gradeBonus:0,biasScore:56,sampleCount:0};
+    return{...h,...r};
+  });
+  const na=normalizeLow(computed.map(h=>h.avgAgari));
+  const nb=normalizeLow(computed.map(h=>h.bestAgari));
+  return computed.map((h,i)=>{
+    const na2=na[i]??55,nb2=nb[i]??55;
+    // 上り3F: 末脚能力85%(平均40+最速25+安定20) + バイアス修正15%
+    const total=Math.round(na2*0.40+nb2*0.25+(h.consistency||50)*0.20+h.biasScore*0.15);
+    return{...h,normAvg:na2,normBest:nb2,total};
+  }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRankByPos(i)}));
+}
+
+// ── AXIS 2: ラップ(時計) ──
+function computeLap(h,bias,dist,tt,cond){
+  const d=parseInt(dist);
+  const ovKW=["海外","香港","UAE","仏","英","米","豪"];
+  const dom=h.runs.filter(r=>!ovKW.some(k=>(r.venue||"").includes(k)));
+  const rel=dom.filter(r=>r.timeS&&r.tt===tt&&Math.abs(r.dist-d)<=300).slice(0,6);
+  const broad=dom.filter(r=>r.timeS&&Math.abs(r.dist-d)<=600).slice(0,6);
+  const sample=rel.length>=2?rel:broad;
+  const figs=sample.map(r=>calcFig(r.timeS,r.dist,r.tt||tt,r.going||"良")).filter(f=>f!=null&&f>0&&f<160);
+  if(!figs.length) return null;
+  const avgFig=figs.reduce((s,f)=>s+f,0)/figs.length;
+  const bestFig=Math.max(...figs);
+  const exact=dom.filter(r=>r.dist===d&&r.timeS).length;
+  const near200=dom.filter(r=>Math.abs(r.dist-d)<=200&&r.timeS).length;
+  const distMatch=exact>=3?92:exact>=1?80:near200>=2?67:rel.length>=1?56:40;
+  h.style=h.style||inferStyle(h.runs);
+  const bs=(STYLE_BIAS[h.style]||STYLE_BIAS["不明"])[bias]||56;
+  const condR=dom.filter(r=>r.going===cond&&r.timeS&&r.pos<=5).length;
+  const condBonus=condR>=2?8:condR>=1?4:0;
+  return{avgFig,bestFig,distMatch,biasScore:bs,condBonus,figCount:figs.length};
+}
+
+function buildLapRanking(bias){
+  const dist=state.distance,tt=state.trackType,cond=state.cond;
+  const computed=horses.map(h=>{
+    const r=computeLap(h,bias,dist,tt,cond);
+    if(!r) return{...h,avgFig:null,bestFig:null,distMatch:40,biasScore:56,condBonus:0,figCount:0};
+    return{...h,...r};
+  });
+  const na=normalizeHigh(computed.map(h=>h.avgFig));
+  const nb=normalizeHigh(computed.map(h=>h.bestFig));
+  return computed.map((h,i)=>{
+    const na2=na[i]??55,nb2=nb[i]??55;
+    // ラップ: スピード能力70%(平均50+最高20) + 距離適性30% ※バイアス・馬場補正は指数内に織込み済みのため除外
+    const total=Math.round(na2*0.50+nb2*0.20+(h.distMatch||40)*0.30);
+    return{...h,normAvgFig:na2,normBestFig:nb2,total};
+  }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRankByPos(i)}));
+}
+
+// ── AXIS 3: 血統 ──
+function lookupSire(name){
+  if(!name) return null;
+  if(SIRE_DB[name]) return{...SIRE_DB[name],key:name};
+  for(const[k,v] of Object.entries(SIRE_DB)){
+    if(name.includes(k)||k.includes(name)) return{...v,key:k};
+  }
+  return null;
+}
+function distCompatScore(info,dist){
+  const d=parseInt(dist);const[lo,hi]=info.dr;
+  if(d>=lo&&d<=hi) return 90;
+  const gap=d<lo?lo-d:d-hi;
+  return Math.max(20,Math.round(90-gap/20));
+}
+function surfCompatScore(info,tt){
+  if(info.sf==="両") return 85;
+  return info.sf===tt?90:25;
+}
+function computeBlood(h,bias,dist,tt){
+  const si=lookupSire(h.sire);
+  const bmi=lookupSire(h.bmsire);
+  if(!si) return{bloodScore:52,sireFound:false,bmiFound:!!bmi,si:null,bmi,sireDistC:52,surfc:52,sireBC:52};
+  const sbc=si.bias[bias]||62;
+  const sdc=distCompatScore(si,dist);
+  const ssc=surfCompatScore(si,tt);
+  let bmBonus=0;
+  if(bmi){
+    const bmbc=bmi.bias[bias]||62;
+    const bmdc=distCompatScore(bmi,dist);
+    const bmsc=surfCompatScore(bmi,tt);
+    bmBonus=Math.round((bmbc*0.40+bmdc*0.30+bmsc*0.30)*0.10);
+  }
+  // 血統: 距離適性40% + 芝ダ適性30% + バイアス合致20% + 母父ボーナス10%
+  const bloodScore=Math.round(sdc*0.40+ssc*0.30+sbc*0.20)+bmBonus;
+  return{bloodScore,sireFound:true,bmiFound:!!bmi,si,bmi,sireDistC:sdc,surfc:ssc,sireBC:sbc};
+}
+
+function buildBloodRanking(bias){
+  const dist=state.distance,tt=state.trackType;
+  const computed=horses.map(h=>({...h,...computeBlood(h,bias,dist,tt)}));
+  const norm=normalizeHigh(computed.map(h=>h.bloodScore));
+  return computed.map((h,i)=>({...h,total:norm[i]??52}))
+    .sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRankByPos(i)}));
+}
+
+// ── 描画: 上り3F ──
+function renderAgari(){
+  const bias=getEffBias();
+  let ranked=buildAgariRanking(bias);
+  ranked=sortAgariArr(ranked,state.sortAgari);
+  const top=ranked[0]?.total||1;
+  const el=document.getElementById("agari-content");
+  if(!ranked.length){el.innerHTML=`<div class="empty">データを読み込んでください</div>`;return;}
+  let html=`<div class="sort-area"><div class="sort-label">並べ替え</div><div class="sort-btns">
+    ${[["total","🏆 総合"],["avgA","🔥 上り平均"],["bestA","💨 最速上り"],["bias","🏟 バイアス"],["consist","📊 安定度"]].map(([k,l])=>
+      `<button class="sort-btn ${state.sortAgari===k?"active":"inactive"}" onclick="setSortAgari('${k}')">${l}</button>`).join("")}
+  </div><div class="sort-note">印（◎○▲）は総合スコア順。並べ替えは表示順のみ変更。分析バイアス: <b>${bias}</b></div></div>`;
+  html+=`<div class="legend">
+    <span><span class="ldot" style="background:#0a7a5a"></span>上り平均(秒）</span>
+    <span><span class="ldot" style="background:#c07010"></span>最速上り(秒)</span>
+    <span><span class="ldot" style="background:#6a40c0"></span>バイアス適性</span>
+    <span><span class="ldot" style="background:#cc2222"></span>安定度</span>
+  </div><div class="horse-list">`;
+  ranked.forEach((h,i)=>{
+    const rk=h.rank;const pct=(h.total/top)*100;
+    const sc=styleColor(h.style||"不明");
+    const avStr=h.avgAgari?h.avgAgari.toFixed(1)+"秒":"---";
+    const bsStr=h.bestAgari?h.bestAgari.toFixed(1)+"秒":"---";
+    const pastItems=h.runs.filter(r=>r.agari).slice(0,4).map(r=>{
+      const pc=r.pos===1?"#cc2222":r.pos<=3?"#c07010":r.pos<=5?"#0a7a5a":"#3a6a4a";
+      return `<span><b style="color:${pc}">${r.pos<=18?r.pos+"着":"取"}</b> ${r.raceName||r.venue} ${r.dist}m 上り<b style="color:#0a7a5a">${r.agari.toFixed(1)}</b>秒</span>`;
+    });
+    html+=`<div class="horse-card" style="background:#fffdf5;border:2px solid ${rk.color};border-left:6px solid ${rk.color}">
+      <div class="horse-top">
+        <div class="horse-num" style="color:#1a5a2a">${i+1}</div>
+        <div class="horse-rank" style="color:${rk.color}">${rk.label}</div>
+        <div class="horse-name">${h.name}<span class="horse-style" style="color:${sc}">${h.style||"不明"}</span></div>
+        <div class="horse-right"><div class="horse-jockey">${h.jockey}</div><div class="horse-trainer">${h.trainer}</div></div>
+        <div class="horse-score" style="color:${rk.color}">${h.total}</div>
+      </div>
+      <div class="score-bar"><div class="score-bar-inner" style="width:${pct}%;background:linear-gradient(90deg,${rk.color}88,${rk.color})"></div></div>
+      <div class="score-breakdown">
+        <div class="score-chip">🔥 上り平均 <b style="color:#0a7a5a">${avStr}</b> <span style="color:#aaa">×40%</span></div>
+        <div class="score-chip">💨 最速上り <b style="color:#c07010">${bsStr}</b> <span style="color:#aaa">×25%</span></div>
+        <div class="score-chip">📊 安定度 <b style="color:#cc2222">${h.consistency||"---"}点</b> <span style="color:#aaa">×20%</span></div>
+        <div class="score-chip">🏟 バイアス <b style="color:#6a40c0">${h.biasScore}点</b> <span style="color:#aaa">×15%</span></div>
+        ${h.gradeBonus?"<div class='score-chip'>🥇 G1好走 <b style='color:#8a5a10'>+ボーナス</b></div>":""}
+      </div>
+      <div class="horse-detail">
+        <span>参照走数: <b>${h.sampleCount||0}走</b></span>
+        <span>父: <b style="color:#4a20a0">${h.sire||"不明"}</b></span>
+        <span>調教師: <b>${h.trainer}</b></span>
+      </div>
+      ${pastItems.length?`<div class="past-box">${pastItems.join(" ／ ")}</div>`:""}
+    </div>`;
+  });
+  el.innerHTML=html+`</div>`;
+}
+
+// ── 描画: ラップ ──
+function renderLap(){
+  const bias=getEffBias();
+  let ranked=buildLapRanking(bias);
+  ranked=sortLapArr(ranked,state.sortLap);
+  const top=ranked[0]?.total||1;
+  const el=document.getElementById("lap-content");
+  if(!ranked.length){el.innerHTML=`<div class="empty">データを読み込んでください</div>`;return;}
+  let html=`<div class="sort-area"><div class="sort-label">並べ替え</div><div class="sort-btns">
+    ${[["total","🏆 総合"],["avgF","⏱ 平均指数"],["bestF","🎯 最高指数"],["dist","📏 距離適性"]].map(([k,l])=>
+      `<button class="sort-btn ${state.sortLap===k?"active":"inactive"}" onclick="setSortLap('${k}')">${l}</button>`).join("")}
+  </div><div class="sort-note">スピード指数 = (パータイム − 実走タイム) × 10 + 80。距離・馬場補正済み。バイアス評価は上り3Fタブに集約。分析条件: ${state.trackType}${state.distance}m ${state.cond}</div></div>`;
+  html+=`<div class="legend">
+    <span><span class="ldot" style="background:#c07010"></span>平均指数(50%)</span>
+    <span><span class="ldot" style="background:#cc2222"></span>最高指数(20%)</span>
+    <span><span class="ldot" style="background:#1a5a9a"></span>距離適性(30%)</span>
+  </div><div class="horse-list">`;
+  ranked.forEach((h,i)=>{
+    const rk=h.rank;const pct=(h.total/top)*100;
+    const sc=styleColor(h.style||"不明");
+    const figC=h.avgFig>=90?"#cc2222":h.avgFig>=80?"#c07010":"#0a7a5a";
+    const pastItems=h.runs.filter(r=>r.timeS&&r.pos<=18).slice(0,4).map(r=>{
+      const fig=calcFig(r.timeS,r.dist,r.tt||"芝",r.going||"良");
+      const pc=r.pos===1?"#cc2222":r.pos<=3?"#c07010":r.pos<=5?"#0a7a5a":"#3a6a4a";
+      const ts=r.timeS?Math.floor(r.timeS/60)+":"+String(Math.round((r.timeS%60)*10)/10).padStart(4,"0"):"--";
+      return `<span><b style="color:${pc}">${r.pos}着</b> ${r.raceName||r.venue} ${r.dist}m ${ts} 指数<b style="color:#c07010">${fig!=null?Math.round(fig):"--"}</b></span>`;
+    });
+    html+=`<div class="horse-card" style="background:#fffdf5;border:2px solid ${rk.color};border-left:6px solid ${rk.color}">
+      <div class="horse-top">
+        <div class="horse-num" style="color:#1a5a2a">${i+1}</div>
+        <div class="horse-rank" style="color:${rk.color}">${rk.label}</div>
+        <div class="horse-name">${h.name}<span class="horse-style" style="color:${sc}">${h.style||"不明"}</span></div>
+        <div class="horse-right"><div class="horse-jockey">${h.jockey}</div><div class="horse-trainer">${h.trainer}</div></div>
+        <div class="horse-score" style="color:${rk.color}">${h.total}</div>
+      </div>
+      <div class="score-bar"><div class="score-bar-inner" style="width:${pct}%;background:linear-gradient(90deg,${rk.color}88,${rk.color})"></div></div>
+      <div class="score-breakdown">
+        <div class="score-chip">⏱ 平均指数 <b style="color:${figC}">${h.avgFig?Math.round(h.avgFig):"---"}</b> <span style="color:#aaa">×50%</span></div>
+        <div class="score-chip">🎯 最高指数 <b style="color:#cc2222">${h.bestFig?Math.round(h.bestFig):"---"}</b> <span style="color:#aaa">×20%</span></div>
+        <div class="score-chip">📏 距離適性 <b style="color:#1a5a9a">${h.distMatch||"---"}点</b> <span style="color:#aaa">×30%</span></div>
+      </div>
+      <div class="horse-detail">
+        <span>参照走数: <b>${h.figCount||0}走</b></span>
+        <span>父: <b style="color:#4a20a0">${h.sire||"不明"}</b></span>
+        <span>調教師: <b>${h.trainer}</b></span>
+      </div>
+      ${pastItems.length?`<div class="past-box">${pastItems.join(" ／ ")}</div>`:""}
+    </div>`;
+  });
+  el.innerHTML=html+`</div>`;
+}
+
+// ── 描画: 血統 ──
+function renderBlood(){
+  const bias=getEffBias();
+  let ranked=buildBloodRanking(bias);
+  ranked=sortBloodArr(ranked,state.sortBlood);
+  const top=ranked[0]?.total||1;
+  const el=document.getElementById("blood-content");
+  if(!ranked.length){el.innerHTML=`<div class="empty">データを読み込んでください</div>`;return;}
+  let html=`<div class="sort-area"><div class="sort-label">並べ替え</div><div class="sort-btns">
+    ${[["total","🏆 総合"],["bsmatch","🏟 バイアス合致"],["distc","📏 距離適性"],["surfc","🌿 芝ダ適性"]].map(([k,l])=>
+      `<button class="sort-btn ${state.sortBlood===k?"active":"inactive"}" onclick="setSortBlood('${k}')">${l}</button>`).join("")}
+  </div><div class="sort-note">父馬DBなし＝参考値（グレー）。条件: ${state.course} ${state.trackType} ${state.distance}m / バイアス: ${bias}</div></div>`;
+  html+=`<div class="horse-list">`;
+  ranked.forEach((h,i)=>{
+    const rk=h.rank;const pct=(h.total/top)*100;
+    const bc=h.sireFound?rk.color:"#bbbbbb";
+    html+=`<div class="horse-card" style="background:${h.sireFound?"#fffdf5":"#fafaf5"};border:2px solid ${bc};border-left:6px solid ${bc}">
+      <div class="horse-top">
+        <div class="horse-num" style="color:#1a5a2a">${i+1}</div>
+        <div class="horse-rank" style="color:${h.sireFound?rk.color:"#999"}">${h.sireFound?rk.label:"− DB外"}</div>
+        <div class="horse-name">${h.name}</div>
+        <div class="horse-right"><div class="horse-jockey">${h.jockey}</div><div class="horse-trainer">${h.trainer}</div></div>
+        <div class="horse-score" style="color:${h.sireFound?rk.color:"#999"}">${h.sireFound?h.total:"---"}</div>
+      </div>
+      ${h.sireFound?`<div class="score-bar"><div class="score-bar-inner" style="width:${pct}%;background:linear-gradient(90deg,${rk.color}88,${rk.color})"></div></div>`:""}
+      <div class="blood-box">
+        <div class="blood-sire">🐴 父: ${h.sire||"不明"} ${!h.sireFound?"<span style='font-size:10px;color:#aaa'>（DBなし参考値）</span>":""}</div>
+        <div class="blood-dam">🐎 母: ${h.dam||"不明"}</div>
+        <div class="blood-dam">🐎 母父: ${h.bmsire||"不明"} ${h.bmiFound?"<span style='font-size:10px;color:#0a7a5a'>✓DB</span>":""}</div>
+        ${h.si?`<div class="blood-badges">
+          <span class="btag" style="background:rgba(10,122,90,.1);border:1px solid #0a7a5a;color:#0a7a5a">距離 ${h.sireDistC}点 <span style="opacity:.6">×40%</span></span>
+          <span class="btag" style="background:rgba(192,112,16,.1);border:1px solid #c07010;color:#c07010">芝ダ ${h.surfc}点 <span style="opacity:.6">×30%</span></span>
+          <span class="btag" style="background:rgba(140,100,240,.12);border:1px solid #a060e0;color:#6a40c0">バイアス ${h.sireBC}点 <span style="opacity:.6">×20%</span></span>
+          <span class="btag" style="background:#eef7f0;border:1px solid #1a7a3a;color:#1a7a3a">${h.si.do}</span>
+          <span class="btag" style="background:#eef7f0;border:1px solid #3a6a4a;color:#3a6a4a">脚質傾向 ${h.si.st}</span>
+        </div><div class="blood-note">${h.si.note}</div>
+        ${h.bmiFound&&h.bmi?`<div class="blood-note" style="color:#8a50c0;margin-top:3px">母父(×10%): ${h.bmi.note}</div>`:""}`:
+        "<div class='blood-note' style='color:#aaa;margin-top:4px'>父馬DBに登録なし。脚質傾向は別途ご確認ください。</div>"}
+      </div>
+      <div class="horse-detail" style="margin-top:6px">
+        <span>生産: <b>${h.breeder||"不明"}</b></span>
+        <span>馬主: <b>${h.owner||"不明"}</b></span>
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html+`</div>`;
+}
+
+// ── ソート ──
+function sortAgariArr(arr,key){
+  return[...arr].sort((a,b)=>{
+    if(key==="avgA") return(a.avgAgari||99)-(b.avgAgari||99);
+    if(key==="bestA") return(a.bestAgari||99)-(b.bestAgari||99);
+    if(key==="bias") return b.biasScore-a.biasScore;
+    if(key==="consist") return(b.consistency||0)-(a.consistency||0);
+    return b.total-a.total;
+  });
+}
+function sortLapArr(arr,key){
+  return[...arr].sort((a,b)=>{
+    if(key==="avgF") return(b.avgFig||0)-(a.avgFig||0);
+    if(key==="bestF") return(b.bestFig||0)-(a.bestFig||0);
+    if(key==="dist") return(b.distMatch||0)-(a.distMatch||0);
+    if(key==="bias") return(b.biasScore||0)-(a.biasScore||0);
+    return b.total-a.total;
+  });
+}
+function sortBloodArr(arr,key){
+  return[...arr].sort((a,b)=>{
+    if(key==="bsmatch") return(b.sireBC||0)-(a.sireBC||0);
+    if(key==="distc") return(b.sireDistC||0)-(a.sireDistC||0);
+    if(key==="surfc") return(b.surfc||0)-(a.surfc||0);
+    return b.total-a.total;
+  });
+}
+function setSortAgari(k){state.sortAgari=k;renderAgari();}
+function setSortLap(k){state.sortLap=k;renderLap();}
+function setSortBlood(k){state.sortBlood=k;renderBlood();}
+
+// ── バイアス表 ──
+function renderBiasTable(){
+  const co=b=>b==="内・逃げ先行有利"?"#1a4a8a":b==="外・差し有利"?"#8a3a10":b==="内・差し有利"?"#6a40c0":b==="外・先行有利"?"#1a6a4a":"#0a7a2a";
+  let html=`<thead><tr><th style="text-align:left">競馬場</th><th>芝/ダ</th><th>1-2日目</th><th>3-4日目</th><th>5-6日目</th><th>7日目〜</th><th style="text-align:left">特徴</th></tr></thead><tbody>`;
+  Object.entries(COURSE_BIAS_DB).forEach(([name,data])=>{
+    [["芝",data.芝],["ダ",data.ダ]].forEach(([type,bias])=>{
+      const cur=name===state.course&&type===state.trackType;
+      html+=`<tr style="${cur?"background:#eef7f0;font-weight:700":""}">
+        <td style="font-weight:${cur?900:400};color:${cur?"#0d5a20":"#1a3a2a"}">${name}${cur?"◀":""}</td>
+        <td style="color:#3a6a4a">${type}</td>`;
+      ["early","mid","late","final"].forEach(k=>{
+        const now=cur&&getDayCat(state.kaisaiDay)===k;
+        html+=`<td style="${now?"background:#ddf0e4;font-weight:900":""}"><span style="color:${co(bias[k])}">${bias[k]}</span></td>`;
+      });
+      html+=`<td style="font-size:10px;color:#3a6a4a">${type==="芝"?data.note:""}</td></tr>`;
+    });
+  });
+  document.getElementById("bias-table-el").innerHTML=html+`</tbody>`;
+}
+
+// ── バイアスUI ──
+function renderBiasUI(){
+  const ab=getAutoBias();
+  document.getElementById("bias-info").innerHTML=
+    `<span>🏟 トラックバイアス:</span>
+     <span>${state.course}/${state.trackType}/${state.kaisaiDay}日目 → 自動: <b style="color:#0a7a2a">${ab.bias}</b></span>
+     <span style="color:${state.manualBias?"#c0206a":"#1a7a3a"}">${state.manualBias?"🖊 手動: "+state.manualBias:"🤖 自動適用中"}</span>`;
+  document.getElementById("bias-note").textContent=ab.note;
+  document.getElementById("bias-btns").innerHTML=
+    `<button class="bias-btn ${!state.manualBias?"active":"inactive"}" onclick="setBias('')">🤖 自動</button>`+
+    BIAS_KEYS.map(b=>`<button class="bias-btn ${state.manualBias===b?"active":"inactive"}" onclick="setBias('${b}')">${b}</button>`).join("");
+}
+function setBias(b){state.manualBias=b;renderBiasUI();if(horses.length) renderAll();}
+
+// ── 全描画 ──
+function renderAll(){
+  horses.forEach(h=>{if(!h.style) h.style=inferStyle(h.runs);});
+  renderAgari();
+  renderLap();
+  renderBlood();
+  renderBiasTable();
+}
+
+// ── ファイルハンドラ ──
+async function handleFile(){
+  const file=document.getElementById("fullset-file").files[0];
+  if(!file){flashMsg("フルセットCSVを選択してください",true);return;}
+  const btn=document.getElementById("analyze-btn");
+  btn.textContent="⏳ 解析中...";btn.disabled=true;
+  try{
+    const text=await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=e=>res(e.target.result);
+      r.onerror=rej;
+      r.readAsText(file,"Shift-JIS");
+    });
+    horses=parseFullsetCSV(text);
+    if(!horses.length){
+      flashMsg("馬データが取得できませんでした。ファイル形式を確認してください",true);
+      btn.textContent="🔍 CSV解析して分析開始";btn.disabled=false;return;
+    }
+    horses.forEach(h=>{h.style=inferStyle(h.runs);});
+    document.getElementById("action-btns").style.display="flex";
+    renderAll();
+    switchTab("agari");
+    const totalRuns=horses.reduce((s,h)=>s+h.runs.length,0);
+    flashMsg(`✓ ${horses.length}頭 読み込み完了（${totalRuns}走分析）`);
+  }catch(e){
+    flashMsg("読み込みエラー: "+e.message,true);
+    console.error(e);
+  }
+  btn.textContent="🔍 CSV解析して分析開始";btn.disabled=false;
+}
+
+// ── CSV書き出し ──
+function exportCSV(){
+  if(!horses.length) return;
+  const bias=getEffBias();
+  const agR=buildAgariRanking(bias);
+  const laR=buildLapRanking(bias);
+  const blR=buildBloodRanking(bias);
+  const hdr="馬名,脚質,騎手,調教師,父馬,母父,上り3F-印,上り3F-スコア,上り平均秒,最速上り秒,ラップ-印,ラップ-スコア,平均指数,最高指数,距離適性点,血統-印,血統-スコア,バイアス合致(父),分析条件\n";
+  const rows=horses.map(h=>{
+    const a=agR.find(x=>x.name===h.name);
+    const l=laR.find(x=>x.name===h.name);
+    const b=blR.find(x=>x.name===h.name);
+    return[h.name,h.style||"不明",h.jockey,h.trainer,h.sire||"",h.bmsire||"",
+      a?.rank?.short||"",a?.total||"",a?.avgAgari?.toFixed(1)||"",a?.bestAgari?.toFixed(1)||"",
+      l?.rank?.short||"",l?.total||"",l?.avgFig?Math.round(l.avgFig):"",l?.bestFig?Math.round(l.bestFig):"",l?.distMatch||"",
+      b?.rank?.short||"",b?.total||"",b?.sireBC||"",
+      `${state.course} ${state.trackType} ${state.distance}m ${state.cond} ${bias}`
+    ].join(",");
+  });
+  const blob=new Blob(["\uFEFF"+hdr+rows.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`triple_${state.course}${state.distance}m.csv`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// ── タブ切り替え ──
+function switchTab(tab){
+  document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(el=>{el.classList.remove("active");el.classList.add("inactive");});
+  document.getElementById(`tab-${tab}`).classList.add("active");
+  const names=["import","agari","lap","blood","bias"];
+  const idx=names.indexOf(tab);
+  const btns=document.querySelectorAll(".tab-btn");
+  if(idx>=0){btns[idx].classList.add("active");btns[idx].classList.remove("inactive");}
+  if(tab==="bias") renderBiasTable();
+}
+
+// ── イベントリスナー ──
+["sel-course","sel-type","sel-dist","sel-cond","sel-day"].forEach(id=>{
+  document.getElementById(id).addEventListener("change",()=>{
+    state.course   =document.getElementById("sel-course").value;
+    state.trackType=document.getElementById("sel-type").value;
+    state.distance =document.getElementById("sel-dist").value;
+    state.cond     =document.getElementById("sel-cond").value;
+    state.kaisaiDay=document.getElementById("sel-day").value;
+    renderBiasUI();
+    if(horses.length) renderAll();
+  });
+});
+
+// 初期化
+renderBiasUI();
+renderBiasTable();
+
+</script>
+</body>
+</html>
