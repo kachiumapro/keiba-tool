@@ -1286,8 +1286,34 @@ async function handleFiles(){
     const matched=newHorses.filter(h=>h.runs.length>0).length;
     const totalRuns=newHorses.reduce((s,h)=>s+h.runs.length,0);
 
-    // レースラベル生成（競馬場＋距離）
-    const label=`${state.course} ${state.trackType}${state.distance}m`;
+    // レースラベル生成：全馬CSVの最初の行からレース名を取得
+    // col8=レース名、col6=場所、col41=距離 (全馬CSV形式)
+    let label=`${state.course} ${state.trackType}${state.distance}m`;
+    if(rows2.length>0){
+      const r0=rows2[0];
+      const raceName=(r0[8]||"").trim();   // レース名
+      const venue=(r0[6]||"").trim();      // 場所
+      const dist=(r0[41]||"").trim();      // 距離
+      const tt=(r0[40]||"").trim();        // 芝ダ
+      if(raceName&&venue&&dist){
+        // "G3"等のグレード表記を除去して短縮
+        const shortName=raceName.replace(/Ｇ[１２３]|G[123]|\(L\)|OP\(L\)|OP/g,"").trim();
+        label=`${venue} ${shortName||raceName}`;
+      } else if(venue&&dist){
+        label=`${venue} ${tt}${dist}m`;
+      } else {
+        // ファイル名からレース名を生成
+        const fname=rawEntry.name.replace(/\.csv$/i,"")
+          .replace(/出馬.*$/,"").replace(/^\d+_/,"").trim();
+        if(fname) label=fname;
+      }
+    }
+    // ファイル名フォールバック
+    if(!label||label===`${state.course} ${state.trackType}${state.distance}m`){
+      const fname=rawEntry.name.replace(/\.csv$/i,"")
+        .replace(/出馬.*$/,"").replace(/^\d+_/,"").trim();
+      if(fname) label=fname;
+    }
 
     // レースを追加
     raceCounter++;
