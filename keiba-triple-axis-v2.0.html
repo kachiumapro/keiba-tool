@@ -6,7 +6,7 @@
 <title>競馬3軸分析 v2.0</title>
 <style>
 :root {
-  --bg:#f5f0e8;--bg2:#eef7f0;--bg3:#eef7f0;
+  --bg:#e8dfc8;--bg2:#eef7f0;--bg3:#eef7f0;
   --card:#fffdf5;--card2:#fffdf5;
   --border:#1a7a3a;--border2:#8ac4a0;
   --green:#1a7a3a;--green2:#3ddb6a;--green3:#5aed85;
@@ -269,7 +269,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 
   <!-- FILE UPLOAD -->
   <div class="file-section">
-    <div class="cfg-title">📂 ファイル読込（2ファイル）</div>
+    <div class="cfg-title">📂 ファイル読み込み</div>
     <div class="file-grid">
       <div class="file-box">
         <div class="file-title">① 出馬表CSV</div>
@@ -286,13 +286,13 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
           TARGET → 全馬成績 → CSV出力<br>
           <b style="color:var(--gold)">77行形式</b>（ハロン別ラップ・上り3F含む）
         </div>
-        <input type="file" accept=".csv" id="file-zenbа" class="file-input" onchange="onFileChange('zenba')">
+        <input type="file" accept=".csv" id="file-zenba" class="file-input" onchange="onFileChange('zenba')">
         <div class="file-status" id="status-zenba">未選択</div>
       </div>
     </div>
     <div class="analyze-wrap" style="margin-top:14px">
       <button class="analyze-btn" id="analyze-btn" onclick="handleFiles()">
-        🔍 2ファイル解析して分析開始
+        🔍 CSV分析開始
       </button>
     </div>
   </div>
@@ -426,6 +426,18 @@ function getAutoBias(){
   return{bias:(state.trackType==="ダ"?db.ダ:db.芝)[getDayCat(state.kaisaiDay)],note:db.note};
 }
 function getEffBias(){return state.manualBias||getAutoBias().bias;}
+function getRaceRank(ranked){
+  if(!ranked||ranked.length<2) return null;
+  const top=ranked[0].total;
+  const second=ranked[1].total;
+  const gap=top-second;
+  if(top>=85&&gap>=12) return{rank:"S",label:"Ｓ 最高勝負",color:"#cc2222",bg:"rgba(204,34,34,.10)",note:"本命が抜けた存在。自信を持って勝負！"};
+  if(top>=78&&gap>=8)  return{rank:"A",label:"Ａ 勝負",color:"#c07010",bg:"rgba(192,112,16,.10)",note:"本命がリード。積極的に狙える一戦。"};
+  if(top>=70&&gap>=5)  return{rank:"B",label:"Ｂ 注目",color:"#8a7a00",bg:"rgba(138,122,0,.08)",note:"優位馬あり。やや自信あり。"};
+  if(gap>=3)           return{rank:"C",label:"Ｃ 様子見",color:"#0a7a5a",bg:"rgba(10,122,90,.08)",note:"差が小さい。少額で様子見推奨。"};
+  return{rank:"D",label:"Ｄ 難解",color:"#6a6a6a",bg:"rgba(106,106,106,.07)",note:"拮抗レース。見送りも一手。"};
+}
+
 function getRank(i){
   if(i===0) return{label:"◎ 本命",short:"◎",color:"var(--rank1)"};
   if(i===1) return{label:"○ 対抗",short:"○",color:"var(--rank2)"};
@@ -534,31 +546,55 @@ function paceCompatScore(style, pace){
 // CSVパーサー
 // ══════════════════════════════════════════════
 
-// 出馬表CSV（18行形式）パース
+// 出馬表CSV（18行形式）パース - 列数で自動判定
 function parseEntryCSV(rows){
   const horses=[];
-  for(const c of rows){
-    if(c.length<10) continue;
-    // 枠番はcol0、馬番はcol2、馬名はcol6
-    const waku=parseInt(c[0]);
-    const bnum=parseInt(c[2]);
+  // データ行のみ抽出（枠番が1-8の数値）
+  const dataRows=rows.filter(c=>{
+    const w=parseInt(c[0]);
+    return !isNaN(w)&&w>=1&&w<=8&&c.length>=10;
+  });
+  if(!dataRows.length) return [];
+
+  // 列数から形式を判定
+  const maxCols=Math.max(...dataRows.map(c=>c.length));
+  let colMap;
+  if(maxCols>=68){
+    // 69列形式（過去レース・馬体重あり）
+    colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:16,trainer:17,owner:18,
+             odds:19,popularity:22,sire:34,dam:35,bmsire:36};
+  } else if(maxCols>=60){
+    // 66列形式（未来レース・馬体重なし）
+    colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:13,trainer:14,owner:15,
+             odds:16,popularity:19,sire:31,dam:32,bmsire:33};
+  } else if(maxCols>=20){
+    // 20〜23列形式（簡易出馬表）
+    colMap={waku:0,bnum:2,name:7,sex:9,age:10,jockey:12,trainer:17,owner:19,
+             odds:15,popularity:null,sire:16,dam:null,bmsire:18};
+  } else {
+    // フォールバック：馬名・父を探して判定
+    colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:13,trainer:14,owner:15,
+             odds:16,popularity:19,sire:31,dam:32,bmsire:33};
+  }
+
+  for(const c of dataRows){
+    const waku=parseInt(c[colMap.waku]);
+    const bnum=parseInt(c[colMap.bnum]);
     if(isNaN(waku)||isNaN(bnum)||bnum<1||bnum>99) continue;
-    const name=(c[6]||"").trim();
-    if(!name) continue;
+    const name=(c[colMap.name]||"").trim();
+    if(!name||name.length<2) continue;
     horses.push({
       waku, bnum, name,
-      sex:(c[7]||"").trim(),
-      age:parseInt(c[8])||0,
-      jockey:(c[16]||"").trim(),
-      trainer:(c[17]||"").trim(),
-      owner:(c[18]||"").trim(),
-      odds:parseFloat(c[19])||null,
-      popularity:parseInt(c[22])||null,
-      sire:(c[34]||"").trim(),
-      dam:(c[35]||"").trim(),
-      bmsire:(c[36]||"").trim(),
-      weight:parseInt(c[11])||0,
-      weightDiff:parseInt(c[12])||0,
+      sex:(c[colMap.sex]||"").trim(),
+      age:parseInt(c[colMap.age])||0,
+      jockey:(c[colMap.jockey]||"").trim(),
+      trainer:(c[colMap.trainer]||"").trim(),
+      owner:(colMap.owner!=null?(c[colMap.owner]||""):"").trim(),
+      odds:parseFloat(c[colMap.odds])||null,
+      popularity:colMap.popularity!=null?parseInt(c[colMap.popularity])||null:null,
+      sire:(c[colMap.sire]||"").trim(),
+      dam:(colMap.dam!=null?(c[colMap.dam]||""):"").trim(),
+      bmsire:(colMap.bmsire!=null?(c[colMap.bmsire]||""):"").trim(),
     });
   }
   return horses;
@@ -837,10 +873,18 @@ function sortBloodArr(arr,k){
 }
 
 function gateStyle(waku){
-  const colors=["","#fff","#000","#ff4444","#0044ff","#ffee00","#006600","#ff8800","#ff44aa"];
-  const bgs=["","#fff","#222","#ffaaaa","#aaaaff","#ffff88","#88ff88","#ffcc88","#ffaacc"];
-  const w=waku||1;
-  return`background:${bgs[w]||"#888"};color:${colors[w]||"#fff"};border:1px solid rgba(0,0,0,.3)`;
+  const styles=[
+    "",
+    "background:#ffffff;color:#000000;border:2px solid #999", // 1枠 白
+    "background:#111111;color:#ffffff;border:2px solid #111", // 2枠 黒
+    "background:#dd0000;color:#ffffff;border:2px solid #dd0000", // 3枠 赤
+    "background:#0044cc;color:#ffffff;border:2px solid #0044cc", // 4枠 青
+    "background:#eecc00;color:#000000;border:2px solid #ccaa00", // 5枠 黄
+    "background:#009933;color:#ffffff;border:2px solid #009933", // 6枠 緑
+    "background:#ff6600;color:#ffffff;border:2px solid #ff6600", // 7枠 橙
+    "background:#ff69b4;color:#000000;border:2px solid #ee5599", // 8枠 ピンク
+  ];
+  return styles[waku]||"background:#888;color:#fff;border:2px solid #666";
 }
 
 function renderAgari(){
@@ -851,7 +895,16 @@ function renderAgari(){
   const el=document.getElementById("agari-content");
   if(!ranked.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🔥</div>データを読み込んでください</div>`;return;}
 
-  let html=`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  const rr=getRaceRank(ranked);
+  const rrHtml=rr?`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    padding:10px 16px;border-radius:8px;background:${rr.bg};border:2px solid ${rr.color}">
+    <span style="font-size:10px;color:#3a6a4a;letter-spacing:2px;font-weight:700">🏆 レース勝負ランク</span>
+    <span style="font-size:18px;font-weight:900;padding:3px 18px;border-radius:6px;
+      background:#fffdf5;color:${rr.color};border:2px solid ${rr.color}">${rr.label}</span>
+    <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
+  </div>`:"";
+
+  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["avgA","🔥 上り平均"],["bestA","💨 最速上り"],["bias","🏟 バイアス"],["consist","📊 安定度"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortAgari===k?"on":"off"}" onclick="setSortAgari('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">印は総合スコア順。バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -914,7 +967,16 @@ function renderLap(){
   const el=document.getElementById("lap-content");
   if(!ranked.length){el.innerHTML=`<div class="empty"><div class="empty-icon">⏱</div>データを読み込んでください</div>`;return;}
 
-  let html=`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  const rr=getRaceRank(ranked);
+  const rrHtml=rr?`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    padding:10px 16px;border-radius:8px;background:${rr.bg};border:2px solid ${rr.color}">
+    <span style="font-size:10px;color:#3a6a4a;letter-spacing:2px;font-weight:700">🏆 レース勝負ランク</span>
+    <span style="font-size:18px;font-weight:900;padding:3px 18px;border-radius:6px;
+      background:#fffdf5;color:${rr.color};border:2px solid ${rr.color}">${rr.label}</span>
+    <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
+  </div>`:"";
+
+  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["back","🔥 後半3F平均"],["bestBack","💨 最速後半3F"],["fig","⏱ スピード指数"],["pace","🎯 ペース適性"],["dist","📏 距離適性"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortLap===k?"on":"off"}" onclick="setSortLap('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">本格ハロン別ラップ分析。条件: ${state.trackType}${state.distance}m ${state.cond} / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -984,7 +1046,16 @@ function renderBlood(){
   const el=document.getElementById("blood-content");
   if(!ranked.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🧬</div>データを読み込んでください</div>`;return;}
 
-  let html=`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  const rr=getRaceRank(ranked.filter(h=>h.sireFound));
+  const rrHtml=rr?`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    padding:10px 16px;border-radius:8px;background:${rr.bg};border:2px solid ${rr.color}">
+    <span style="font-size:10px;color:#3a6a4a;letter-spacing:2px;font-weight:700">🏆 レース勝負ランク</span>
+    <span style="font-size:18px;font-weight:900;padding:3px 18px;border-radius:6px;
+      background:#fffdf5;color:${rr.color};border:2px solid ${rr.color}">${rr.label}</span>
+    <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
+  </div>`:"";
+
+  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["bsmatch","🏟 バイアス合致"],["distc","📏 距離適性"],["surfc","🌿 芝ダ適性"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortBlood===k?"on":"off"}" onclick="setSortBlood('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">父馬DBなし＝参考値（グレー表示）。条件: ${state.course} ${state.trackType} ${state.distance}m / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -1080,7 +1151,7 @@ function renderAll(){
 // ファイル処理
 // ══════════════════════════════════════════════
 function onFileChange(type){
-  const file=document.getElementById(type==="entry"?"file-entry":"file-zenbа").files[0];
+  const file=document.getElementById(type==="entry"?"file-entry":"file-zenba").files[0];
   const st=document.getElementById("status-"+type);
   if(!file){st.textContent="未選択";st.className="file-status";return;}
   st.textContent=`✓ ${file.name}`;
@@ -1095,7 +1166,6 @@ async function handleFiles(){
   }
   const btn=document.getElementById("analyze-btn");
   btn.textContent="⏳ 解析中...";btn.disabled=true;
-
   try{
     const [t1,t2]=await Promise.all([
       readFile(rawEntry),readFile(rawZenba)
@@ -1107,20 +1177,19 @@ async function handleFiles(){
     const entryHorses=parseEntryCSV(rows1);
     if(!entryHorses.length){
       flashMsg("出馬表CSVの読み込みに失敗しました。ファイル形式を確認してください",true);
-      btn.textContent="🔍 2ファイル解析して分析開始";btn.disabled=false;return;
+      btn.textContent="🔍 CSV分析開始";btn.disabled=false;return;
     }
 
     // 全馬パース
     const zenbaGroups=parseZenbaCSV(rows2);
     if(!Object.keys(zenbaGroups).length){
       flashMsg("全馬CSVの読み込みに失敗しました。ファイル形式を確認してください",true);
-      btn.textContent="🔍 2ファイル解析して分析開始";btn.disabled=false;return;
+      btn.textContent="🔍 CSV分析開始";btn.disabled=false;return;
     }
 
     // 馬名で結合
     horses=entryHorses.map(e=>{
       const nameTrim=e.name.trim();
-      // 馬名で一致を探す（スペース除去して比較）
       const zenba=Object.values(zenbaGroups).find(z=>
         z.name.trim()===nameTrim||
         z.name.trim().replace(/\s/g,"")===nameTrim.replace(/\s/g,"")
@@ -1142,7 +1211,7 @@ async function handleFiles(){
     flashMsg("読み込みエラー: "+e.message,true);
     console.error(e);
   }
-  btn.textContent="🔍 2ファイル解析して分析開始";btn.disabled=false;
+  btn.textContent="🔍 CSV分析開始";btn.disabled=false;
 }
 
 // ══════════════════════════════════════════════
