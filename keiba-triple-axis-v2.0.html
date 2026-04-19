@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>競馬3軸分析 v2.0</title>
+<title>競馬3軸分析 v2.2</title>
 <style>
 :root {
   --bg:#e8dfc8;--bg2:#eef7f0;--bg3:#eef7f0;
@@ -91,6 +91,11 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 .file-status{font-size:10px;margin-top:6px;font-weight:700;}
 .file-status.ok{color:#1a7a3a;}
 .file-status.err{color:var(--red);}
+
+/* AUTO DETECT BADGE */
+.detect-badge{display:inline-block;font-size:10px;padding:3px 10px;border-radius:20px;
+  background:rgba(45,189,90,.15);border:1px solid var(--green2);color:var(--green2);
+  font-weight:700;margin-left:8px;letter-spacing:1px;}
 
 /* ANALYZE BTN */
 .analyze-wrap{text-align:center;padding:8px 0;}
@@ -219,10 +224,9 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 <body>
 
 <div id="header">
-  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.0</div>
-  <h1 class="hd-title">競馬3軸分析 v2.0</h1>
+  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.2</div>
+  <h1 class="hd-title">競馬3軸分析 v2.2</h1>
   <div class="hd-desc">ラップ(ハロン別) ／ 上り3ハロン ／ 血統 × バイアス統合分析</div>
-
   <div id="flash"></div>
 </div>
 
@@ -230,7 +234,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 
   <!-- CONFIG -->
   <div class="config-card">
-    <div class="cfg-title">📍 レース設定</div>
+    <div class="cfg-title">📍 レース設定 <span id="auto-detect-badge" style="display:none" class="detect-badge">🔍 CSV自動検出</span></div>
     <div class="cfg-grid">
       <div><label class="lbl">競馬場</label>
         <select class="ipt" id="sel-course">
@@ -245,9 +249,9 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
       <div><label class="lbl">距離(m)</label>
         <select class="ipt" id="sel-dist">
           <option>1000</option><option>1200</option><option>1400</option>
-          <option selected>1600</option><option>1800</option><option>2000</option>
-          <option>2200</option><option>2400</option><option>2500</option>
-          <option>3000</option><option>3200</option>
+          <option selected>1600</option><option>1700</option><option>1800</option><option>2000</option>
+          <option>2100</option><option>2200</option><option>2400</option>
+          <option>2500</option><option>3000</option><option>3200</option>
         </select></div>
       <div><label class="lbl">馬場状態</label>
         <select class="ipt" id="sel-cond">
@@ -297,14 +301,22 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
         <div class="file-status" id="status-zenba">未選択</div>
       </div>
     </div>
-    <div class="analyze-wrap" style="margin-top:14px">
+    <!-- レース名入力 -->
+    <div style="margin-top:12px;background:#eef7f0;border:2px solid var(--border);
+      border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label class="lbl" style="margin-bottom:0;white-space:nowrap">🏆 レース名（任意）</label>
+      <input type="text" id="race-name-input" class="ipt"
+        placeholder="例: アンタレスステークス　※GⅢ・GⅠ等の重賞・特別戦のレース名を入力"
+        style="flex:1;min-width:200px;max-width:500px">
+      <span style="font-size:10px;color:#3a6a4a">空欄の場合は「阪神 11R」形式で保存</span>
+    </div>
+    <div class="analyze-wrap" style="margin-top:12px">
       <button class="analyze-btn" id="analyze-btn" onclick="handleFiles()">
         🔍 CSV分析開始
       </button>
     </div>
   </div>
 
-  <!-- TABS -->
   <!-- レースタブ -->
   <div id="race-tab-wrap" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:8px;
     padding:10px 14px;background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;">
@@ -343,7 +355,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
     <div class="ov-x"><table class="bias-tbl" id="bias-tbl-el"></table></div>
   </div>
 
-  <div class="footer">━━ KEIBA TRIPLE AXIS ANALYSIS v2.0 ━━</div>
+  <div class="footer">━━ KEIBA TRIPLE AXIS ANALYSIS v2.1 ━━</div>
 </div>
 
 <script>
@@ -398,47 +410,44 @@ const SIRE_DB = {
   "キズナ":{dr:[1600,2400],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":33,"外・先行有利":40,"フラット":68,"内・差し有利":80,"外・差し有利":92},do:"中距離",note:"芝中長距離差し追込。広いコース向き。"},
   "シルバーステート":{dr:[1400,2000],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":68,"フラット":80,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"芝マイル〜中距離先行差し系。安定した産駒成績。"},
   "サートゥルナーリア":{dr:[1600,2500],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":75,"フラット":72,"内・差し有利":58,"外・差し有利":48},do:"マイル〜中距離",note:"芝中距離先行型。内回り・小回りで真価発揮。"},
+  "ホッコータルマエ":{dr:[1400,2000],sf:"ダ",st:"逃げ先行",bias:{"内・逃げ先行有利":94,"外・先行有利":82,"フラット":65,"内・差し有利":28,"外・差し有利":22},do:"マイル〜中距離",note:"ダート逃げ先行の鬼。内枠先行バイアスで最高評価。"},
+  "ヘニーヒューズ":{dr:[1200,1800],sf:"ダ",st:"先行差し",bias:{"内・逃げ先行有利":78,"外・先行有利":72,"フラット":75,"内・差し有利":55,"外・差し有利":50},do:"マイル",note:"ダート先行〜差し。1400〜1800m主体。"},
+  "レイデオロ":{dr:[1600,2400],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":68,"外・先行有利":70,"フラット":80,"内・差し有利":68,"外・差し有利":72},do:"中距離",note:"芝中距離先行差し系。万能型。"},
+  "リアルスティール":{dr:[1400,2000],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":72,"フラット":80,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"芝ダ兼用マイル〜中距離万能型。"},
+  "ジャスタウェイ":{dr:[1400,2000],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":30,"外・先行有利":38,"フラット":68,"内・差し有利":80,"外・差し有利":90},do:"マイル〜中距離",note:"芝中距離差し追込。末脚爆発型。"},
+  "アジアエクスプレス":{dr:[1000,1800],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":85,"外・先行有利":78,"フラット":68,"内・差し有利":35,"外・差し有利":28},do:"スプリント〜マイル",note:"ダートスプリント〜マイル先行特化型。"},
+  "エスポワールシチー":{dr:[1400,1900],sf:"ダ",st:"逃げ先行",bias:{"内・逃げ先行有利":90,"外・先行有利":80,"フラット":62,"内・差し有利":25,"外・差し有利":20},do:"マイル",note:"ダート先行逃げ型産駒。先行バイアスで高評価。"},
+  "スズカコーズウェイ":{dr:[1400,1900],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":86,"外・先行有利":78,"フラット":68,"内・差し有利":32,"外・差し有利":26},do:"マイル",note:"ダートマイル先行型。"},
+  "ミッキーアイル":{dr:[1200,1800],sf:"芝",st:"逃げ先行",bias:{"内・逃げ先行有利":90,"外・先行有利":82,"フラット":60,"内・差し有利":22,"外・差し有利":18},do:"スプリント〜マイル",note:"芝スプリント逃げ先行型。高速馬場最強。"},
+  "Justify":{dr:[1400,2400],sf:"両",st:"先行",bias:{"内・逃げ先行有利":80,"外・先行有利":75,"フラット":72,"内・差し有利":45,"外・差し有利":40},do:"中距離",note:"芝ダ兼用中距離先行型。米国系パワー型。"},
+  "モーニン":{dr:[1200,1800],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":75,"フラット":68,"内・差し有利":36,"外・差し有利":30},do:"マイル",note:"ダートマイル先行特化型。"},
+  "ダノンレジェンド":{dr:[1000,1600],sf:"ダ",st:"逃げ先行",bias:{"内・逃げ先行有利":92,"外・先行有利":80,"フラット":62,"内・差し有利":22,"外・差し有利":18},do:"スプリント",note:"ダートスプリント逃げ先行特化型。"},
   "ドレフォン":{dr:[1200,1800],sf:"ダ",st:"先行",bias:{"内・逃げ先行有利":80,"外・先行有利":75,"フラット":70,"内・差し有利":42,"外・差し有利":35},do:"マイル",note:"ダートスプリント〜マイル先行型。"},
   "ダイワメジャー":{dr:[1200,1800],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":88,"外・先行有利":80,"フラット":68,"内・差し有利":36,"外・差し有利":28},do:"マイル",note:"芝マイル専門先行型。洋芝も得意。"},
-  "ヘニーヒューズ":{dr:[1200,1800],sf:"ダ",st:"先行差し",bias:{"内・逃げ先行有利":78,"外・先行有利":72,"フラット":75,"内・差し有利":55,"外・差し有利":50},do:"マイル",note:"ダート先行〜差し。1400〜1800m主体。"},
   "ルーラーシップ":{dr:[1600,2400],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":62,"外・先行有利":68,"フラット":80,"内・差し有利":68,"外・差し有利":72},do:"中距離",note:"芝中距離万能型。先行も差しもこなせる。"},
   "コントレイル":{dr:[1600,2400],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":65,"外・先行有利":65,"フラット":82,"内・差し有利":70,"外・差し有利":75},do:"マイル〜中距離",note:"芝中距離万能型。先行〜差し幅広く。"},
-  "リアルスティール":{dr:[1400,2000],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":72,"フラット":80,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"芝ダ兼用マイル〜中距離万能型。"},
-  "ダノンプレミアム":{dr:[1400,1800],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":82,"外・先行有利":78,"フラット":70,"内・差し有利":38,"外・差し有利":30},do:"マイル",note:"芝マイル先行型。高速馬場得意。"},
-  "ファインニードル":{dr:[1000,1400],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":86,"外・先行有利":80,"フラット":65,"内・差し有利":35,"外・差し有利":28},do:"スプリント",note:"芝スプリント先行特化型。"},
-  "リアルインパクト":{dr:[1400,1800],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":70,"フラット":78,"内・差し有利":60,"外・差し有利":58},do:"マイル",note:"芝マイル先行差し系。"},
-  "ポエティックフレア":{dr:[1200,1800],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":68,"フラット":78,"内・差し有利":60,"外・差し有利":58},do:"マイル",note:"欧州芝マイル先行差し系。"},
-  "パドトロワ":{dr:[1400,2000],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":38,"外・先行有利":45,"フラット":68,"内・差し有利":78,"外・差し有利":85},do:"マイル〜中距離",note:"芝中距離差し系。"},
-  "Galileo":{dr:[1800,3200],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":32,"外・先行有利":40,"フラット":68,"内・差し有利":78,"外・差し有利":90},do:"中〜長距離",note:"欧州芝長距離最強系譜。末脚型。"},
-  "Frankel":{dr:[1200,1800],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":75,"外・先行有利":78,"フラット":82,"内・差し有利":65,"外・差し有利":62},do:"マイル",note:"欧州芝マイル〜中距離。高い基礎能力。"},
-  "Dubawi":{dr:[1400,2200],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":72,"外・先行有利":68,"フラット":82,"内・差し有利":65,"外・差し有利":65},do:"マイル〜中距離",note:"欧州芝ダ兼用万能型。高い基礎能力。"},
   "ハービンジャー":{dr:[1800,2800],sf:"芝",st:"差し",bias:{"内・逃げ先行有利":30,"外・先行有利":38,"フラット":65,"内・差し有利":78,"外・差し有利":88},do:"中〜長距離",note:"芝中長距離末脚型。洋芝・重馬場に強い。"},
   "ステイゴールド":{dr:[2000,3600],sf:"芝",st:"差し追込",bias:{"内・逃げ先行有利":33,"外・先行有利":42,"フラット":70,"内・差し有利":78,"外・差し有利":90},do:"中〜長距離",note:"芝長距離タフな条件で底力発揮。根性型。"},
-  "American Pharoah":{dr:[1400,2400],sf:"両",st:"先行差し",bias:{"内・逃げ先行有利":70,"外・先行有利":68,"フラット":80,"内・差し有利":62,"外・差し有利":65},do:"中距離",note:"芝ダ兼用中距離万能型。"},
-  "トゥザワールド":{dr:[1800,2500],sf:"芝",st:"先行差し",bias:{"内・逃げ先行有利":65,"外・先行有利":62,"フラット":78,"内・差し有利":65,"外・差し有利":68},do:"中距離",note:"芝中距離先行差し系。"},
-  "ジョーカプチーノ":{dr:[1200,1600],sf:"芝",st:"先行",bias:{"内・逃げ先行有利":84,"外・先行有利":78,"フラット":66,"内・差し有利":38,"外・差し有利":30},do:"マイル",note:"芝スプリント〜マイル先行型。"},
 };
 
 // ══════════════════════════════════════════════
 // State（マルチレース対応）
 // ══════════════════════════════════════════════
-let races = [];       // 読み込んだレースの配列
-let activeRaceId = null; // 現在表示中のレースID
-let raceCounter = 0;  // レースID採番用
+let races = [];
+let activeRaceId = null;
+let raceCounter = 0;
 
 const state = {
-  course:"阪神", trackType:"芝", distance:"1600", cond:"良", kaisaiDay:"1",
+  course:"阪神", trackType:"ダ", distance:"1800", cond:"良", kaisaiDay:"1",
   manualBias:"",
   sortAgari:"total", sortLap:"total", sortBlood:"total",
 };
 let rawEntry = null, rawZenba = null;
 
-// 現在アクティブなレースの馬データを返す
 function getHorses(){
   const race = races.find(r=>r.id===activeRaceId);
   return race ? race.horses : [];
 }
-// 現在アクティブなレースのラベルを返す
 function getActiveRaceLabel(){
   const race = races.find(r=>r.id===activeRaceId);
   return race ? race.label : "";
@@ -523,11 +532,101 @@ function parseCSV(text){
 }
 
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// ★ ファイル名からレース情報を抽出 v2.3
+// ══════════════════════════════════════════════
+function parseInfoFromFilename(filename){
+  // ファイル名例: "阪神11R.csv", "東京7R出馬.csv" etc.
+  let course=null, raceNo=null;
+  for(const v of VENUES){
+    if(filename.includes(v)){course=v;break;}
+  }
+  const mR=filename.match(/(\d{1,2})R/);
+  if(mR) raceNo=mR[1];
+  return{course,raceNo};
+}
+
+// ★ レース情報自動検出 (出馬表CSVから取得) v2.3
+// ══════════════════════════════════════════════
+const VENUES = ["東京","中山","阪神","京都","中京","新潟","福島","小倉","札幌","函館"];
+const VALID_DISTS = [1000,1200,1400,1600,1700,1800,2000,2100,2200,2400,2500,3000,3200];
+
+function parseRaceInfoFromEntry(rows){
+  let course=null, dist=null, trackType=null;
+
+  // パス1: ヘッダー行優先 → 全行の順で各セルをスキャン
+  const headerRows=rows.filter(c=>{
+    const w=parseInt(c[0]);
+    return isNaN(w)||w<1||w>8;
+  });
+  const allRows=[...headerRows,...rows];
+  for(const row of allRows){
+    for(const cell of row){
+      const s=cell.trim();
+      if(!course && VENUES.includes(s)) course=s;
+      if(!trackType){
+        if(s==="芝") trackType="芝";
+        else if(s==="ダ"||s==="ダート") trackType="ダ";
+      }
+      if(!dist){
+        const d=parseInt(s);
+        if(!isNaN(d)&&VALID_DISTS.includes(d)) dist=String(d);
+      }
+    }
+    if(course&&dist&&trackType) break;
+  }
+
+  // パス2: 全行を連結してパターンマッチ（"阪神ダ1800"等の連結形式に対応）
+  if(!course||!dist||!trackType){
+    for(const row of rows){
+      const joined=row.join("");
+      if(!course){for(const v of VENUES){if(joined.includes(v)){course=v;break;}}}
+      if(!trackType){
+        if(!joined.includes("ダ")&&joined.includes("芝")) trackType="芝";
+        else if(joined.includes("ダ")) trackType="ダ";
+      }
+      if(!dist){
+        const m=joined.match(/(\d{4})m?/);
+        if(m){const d=parseInt(m[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
+        if(!dist){
+          const m3=joined.match(/[^\d](\d{3})m/);
+          if(m3){const d=parseInt(m3[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
+        }
+      }
+      if(course&&dist&&trackType) break;
+    }
+  }
+
+  return{course,dist,trackType};
+}
+
+// 出馬表CSVのヘッダー行からレース名を取得（カタカナ主体の文字列を候補）
+function parseRaceNameFromEntry(rows){
+  const headerRows=rows.filter(c=>{
+    const w=parseInt(c[0]);
+    return isNaN(w)||w<1||w>8;
+  });
+  const ignoreWords=new Set(["芝","ダ","ダート","良","稍重","重","不良","牡","牝","騸","競馬","JRA","TARGET"]);
+  for(const row of headerRows){
+    for(const cell of row){
+      const s=cell.trim();
+      // カタカナを含む・3文字以上・20文字以下・無視リスト外の文字列をレース名候補とする
+      if(s.length>=3&&s.length<=25&&/[ァ-ヶーｦ-ﾟ]/.test(s)&&!ignoreWords.has(s)
+         &&!/^\d+$/.test(s)&&!VENUES.includes(s)){
+        // GⅠ等のグレード表記を除去
+        const cleaned=s.replace(/[ＧG][ⅠⅡⅢ123１２３]|\(L\)|OP\(L\)|OP|ＯＰ/g,"").trim();
+        if(cleaned.length>=2) return cleaned;
+      }
+    }
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════
 // ラップパース
 // ══════════════════════════════════════════════
 function parseLapStr(s){
   if(!s||typeof s!=="string") return [];
-  // *付き（出遅れなど）を除去
   const clean=s.replace(/^\*+/,"").trim();
   return clean.split("-").map(v=>parseFloat(v)).filter(v=>!isNaN(v)&&v>8&&v<20);
 }
@@ -536,28 +635,23 @@ function analyzeLap(laps, dist){
   if(!laps||laps.length<3) return null;
   const n=laps.length;
   const total=laps.reduce((s,v)=>s+v,0);
-  // 前半ハロン数（距離の前半）
   const half=Math.ceil(n/2);
   const frontLaps=laps.slice(0,half);
-  const backLaps=laps.slice(n-3); // 後3F
+  const backLaps=laps.slice(n-3);
   const frontAvg=frontLaps.reduce((s,v)=>s+v,0)/frontLaps.length;
   const backAvg=backLaps.reduce((s,v)=>s+v,0)/backLaps.length;
   const front3Avg=laps.slice(0,Math.min(3,n)).reduce((s,v)=>s+v,0)/Math.min(3,n);
-  // ペース判定
   const diff=frontAvg-backAvg;
   let pace="平均";
   if(diff>0.8) pace="ハイペース";
   else if(diff<-0.8) pace="スローペース";
-  // 最速ハロン
   const minLap=Math.min(...laps);
   const minIdx=laps.indexOf(minLap);
-  // ラップの安定度（標準偏差）
   const avg=total/n;
   const sd=Math.sqrt(laps.reduce((s,v)=>s+(v-avg)**2,0)/n);
   return{laps,n,total,frontAvg,backAvg,front3Avg,backAvg3:backAvg,pace,minLap,minIdx,sd,half};
 }
 
-// ペース適性スコア（この馬の走り方がどのペースで強いか）
 function paceCompatScore(style, pace){
   const m={
     "逃げ":  {"ハイペース":55,"平均":80,"スローペース":95},
@@ -573,36 +667,32 @@ function paceCompatScore(style, pace){
 // ══════════════════════════════════════════════
 // CSVパーサー
 // ══════════════════════════════════════════════
-
-// 出馬表CSV（18行形式）パース - 列数で自動判定
 function parseEntryCSV(rows){
   const horses=[];
-  // データ行のみ抽出（枠番が1-8の数値）
   const dataRows=rows.filter(c=>{
     const w=parseInt(c[0]);
     return !isNaN(w)&&w>=1&&w<=8&&c.length>=10;
   });
   if(!dataRows.length) return [];
 
-  // 列数から形式を判定
   const maxCols=Math.max(...dataRows.map(c=>c.length));
   let colMap;
   if(maxCols>=68){
-    // 69列形式（過去レース・馬体重あり）
+    // 69列形式（TARGET全項目出力）
     colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:16,trainer:17,owner:18,
-             odds:19,popularity:22,sire:34,dam:35,bmsire:36};
+             odds:19,popularity:22,sire:34,dam:35,bmsire:36,weight:null};
   } else if(maxCols>=60){
-    // 66列形式（未来レース・馬体重なし）
+    // 66列形式
     colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:13,trainer:14,owner:15,
-             odds:16,popularity:19,sire:31,dam:32,bmsire:33};
+             odds:16,popularity:19,sire:31,dam:32,bmsire:33,weight:null};
   } else if(maxCols>=20){
-    // 20〜23列形式（簡易出馬表）
+    // ★23列形式（TARGETシンプル出馬表）
+    // col[16]は調教場(美/栗)であり父馬ではない！
     colMap={waku:0,bnum:2,name:7,sex:9,age:10,jockey:12,trainer:17,owner:19,
-             odds:15,popularity:null,sire:16,dam:null,bmsire:18};
+             odds:15,popularity:null,sire:null,dam:null,bmsire:null,weight:13};
   } else {
-    // フォールバック：馬名・父を探して判定
     colMap={waku:0,bnum:2,name:6,sex:7,age:8,jockey:13,trainer:14,owner:15,
-             odds:16,popularity:19,sire:31,dam:32,bmsire:33};
+             odds:16,popularity:19,sire:31,dam:32,bmsire:33,weight:null};
   }
 
   for(const c of dataRows){
@@ -620,50 +710,60 @@ function parseEntryCSV(rows){
       owner:(colMap.owner!=null?(c[colMap.owner]||""):"").trim(),
       odds:parseFloat(c[colMap.odds])||null,
       popularity:colMap.popularity!=null?parseInt(c[colMap.popularity])||null:null,
-      sire:(c[colMap.sire]||"").trim(),
+      // 斤量（23列形式に含まれる）
+      burden:colMap.weight!=null?parseFloat(c[colMap.weight])||null:null,
+      // 血統情報（23列形式には含まれないのでnull、全馬CSVから補完される）
+      sire:(colMap.sire!=null?(c[colMap.sire]||""):"").trim(),
       dam:(colMap.dam!=null?(c[colMap.dam]||""):"").trim(),
       bmsire:(colMap.bmsire!=null?(c[colMap.bmsire]||""):"").trim(),
     });
   }
+
+  // 人気をオッズ順から自動計算（popularityがnullの場合）
+  if(horses.length&&horses[0].popularity==null){
+    const sorted=[...horses].filter(h=>h.odds).sort((a,b)=>a.odds-b.odds);
+    sorted.forEach((h,i)=>{h.popularity=i+1;});
+  }
+
   return horses;
 }
 
-// 全馬CSV（77行形式）パース - 1行1過去走
 function parseZenbaCSV(rows){
   const groups={};
   for(const c of rows){
     if(c.length<110) continue;
-    // col140=馬ID、col139=馬名
     const hid=(c[140]||"").trim();
     const name=(c[139]||"").trim();
     if(!hid&&!name) continue;
     const key=hid||name;
-    // col0=何走目（古い順の通し番号）、col1=何走前
-    const nwMae=parseInt(c[1])||0; // 何走前
-    // レース情報
+    const nwMae=parseInt(c[1])||0;
     const venue=(c[6]||"").trim();
     const tt=(c[40]||"").trim();
     const dist=parseInt(c[41])||0;
     const going=(c[47]||"").trim();
-    // タイム（秒整数 or m:s.t形式）
     let timeS=0;
-    const tmRaw=(c[50]||"").trim(); // 1:20.9形式
+    const tmRaw=(c[50]||"").trim();
     if(tmRaw.includes(":")){
       const[m,s]=tmRaw.split(":");
       timeS=parseInt(m)*60+parseFloat(s);
     } else {
-      const enc=parseInt(c[49])||0; // 秒*10整数
+      const enc=parseInt(c[49])||0;
       if(enc>0) timeS=enc/10;
     }
     const agari=parseFloat(c[65])||null;
-    const lapStr=(c[108]||"").trim(); // ハロン別ラップ
+    const lapStr=(c[108]||"").trim();
     const pos=parseInt(c[26])||99;
     const total=parseInt(c[17])||0;
-    const corner4=parseFloat(c[60])||0; // 通過4コーナー位置
-    const style=(c[62]||"").trim(); // 脚質
+    const corner4=parseFloat(c[60])||0;
+    const style=(c[62]||"").trim();
     const weight=parseInt(c[68])||0;
 
-    if(!groups[key]) groups[key]={name:name||key,hid,runs:[]};
+    // 血統情報（全馬CSVの特定列から取得 - 列位置はTARGETバージョンにより異なる）
+    // col[8]〜col[12]付近にある可能性があるため複数候補を試みる
+    const sireRaw=(c[8]||"").trim();
+    const damRaw=(c[9]||"").trim();
+    const bmsireRaw=(c[10]||"").trim();
+    if(!groups[key]) groups[key]={name:name||key,hid,sire:sireRaw,dam:damRaw,bmsire:bmsireRaw,runs:[]};
     groups[key].runs.push({
       nwMae, venue, tt, dist, going,
       timeS:timeS>0?timeS:null,
@@ -672,16 +772,13 @@ function parseZenbaCSV(rows){
       pos, total, corner4, style, weight
     });
   }
-  // 各馬の過去走を何走前順（1走前が先）にソート
   for(const h of Object.values(groups)){
     h.runs.sort((a,b)=>a.nwMae-b.nwMae);
   }
   return groups;
 }
 
-// 脚質推定
 function inferStyle(runs){
-  // 全馬CSVのstyle列を優先
   const styleFromData=runs.find(r=>r.style&&r.style!=="")?.style;
   if(styleFromData) return styleFromData;
   const valid=runs.filter(r=>r.corner4>0&&r.total>0);
@@ -700,8 +797,6 @@ function inferStyle(runs){
 // ══════════════════════════════════════════════
 // 分析エンジン
 // ══════════════════════════════════════════════
-
-// AXIS 1: 上り3F
 function computeAgari(h, bias, dist, tt){
   const d=parseInt(dist);
   const near=h.runs.filter(r=>r.agari&&r.tt===tt&&Math.abs(r.dist-d)<=400).slice(0,5);
@@ -733,45 +828,36 @@ function buildAgariRanking(bias){
   }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRank(i)}));
 }
 
-// AXIS 2: ハロン別ラップ
 function computeLap(h, bias, dist, tt, cond){
   const d=parseInt(dist);
-  // 同条件の過去走を優先
   const rel=h.runs.filter(r=>r.laps.length>=3&&r.tt===tt&&Math.abs(r.dist-d)<=300).slice(0,5);
   const broad=h.runs.filter(r=>r.laps.length>=3&&Math.abs(r.dist-d)<=600).slice(0,5);
   const sample=rel.length>=2?rel:broad;
   if(!sample.length) return null;
 
-  // 各走のラップ分析
   const lapAnalyses=sample.map(r=>analyzeLap(r.laps,r.dist)).filter(a=>a);
   if(!lapAnalyses.length) return null;
 
-  // 後半3Fの平均（末脚指標）
   const backAvgs=lapAnalyses.map(a=>a.backAvg);
   const avgBack=backAvgs.reduce((s,v)=>s+v,0)/backAvgs.length;
   const bestBack=Math.min(...backAvgs);
 
-  // 前半ペース（この馬が好む展開）
   const paces=lapAnalyses.map(a=>a.pace);
   const paceCount={ハイペース:0,平均:0,スローペース:0};
   paces.forEach(p=>paceCount[p]=(paceCount[p]||0)+1);
   const favPace=Object.entries(paceCount).sort((a,b)=>b[1]-a[1])[0][0];
 
-  // ラップ安定度
   const sdAvg=lapAnalyses.reduce((s,a)=>s+a.sd,0)/lapAnalyses.length;
   const lapConsistency=Math.max(20,Math.round(100-sdAvg*15));
 
-  // スピード指数（総合タイム）
   const figs=sample.map(r=>calcFig(r.timeS,r.dist,r.tt||tt,r.going||"良"))
     .filter(f=>f!=null&&f>0&&f<160);
   const avgFig=figs.length?figs.reduce((s,f)=>s+f,0)/figs.length:null;
   const bestFig=figs.length?Math.max(...figs):null;
 
-  // バイアス×ペース適性
   const bs=(STYLE_BIAS[h.style]||STYLE_BIAS["不明"])[bias]||56;
   const pc=paceCompatScore(h.style,favPace);
 
-  // 距離適性
   const exact=h.runs.filter(r=>r.dist===d&&r.laps.length>=3).length;
   const near200=h.runs.filter(r=>Math.abs(r.dist-d)<=200&&r.laps.length>=3).length;
   const distMatch=exact>=3?92:exact>=1?80:near200>=2?68:rel.length>=1?56:40;
@@ -791,19 +877,16 @@ function buildLapRanking(bias){
     if(!r) return{...h,avgBack:null,bestBack:null,lapConsistency:50,favPace:"不明",paceCompat:56,avgFig:null,bestFig:null,distMatch:40,biasScore:56,sampleCount:0,lapAnalyses:[],recentLaps:[]};
     return{...h,...r};
   });
-  // 後半3F（速いほど良い→normalizeLow）
   const nb=normalizeLow(computed.map(h=>h.avgBack));
   const nbest=normalizeLow(computed.map(h=>h.bestBack));
   const nfig=normalizeHigh(computed.map(h=>h.avgFig));
   return computed.map((h,i)=>{
     const nb2=nb[i]??55,nbest2=nbest[i]??55,nfig2=nfig[i]??55;
-    // ラップ分析スコア: 後半3F35% + ラップ安定20% + スピード指数25% + 距離適性20%
     const total=Math.round(nb2*0.35+nbest2*0.15+(h.lapConsistency||50)*0.20+nfig2*0.15+(h.distMatch||40)*0.15+(h.paceCompat||56)*0.15-(h.biasScore||56)*0+((h.biasScore||56)*0.05));
     return{...h,normBack:nb2,normBackBest:nbest2,normFig:nfig2,total};
   }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRank(i)}));
 }
 
-// AXIS 3: 血統
 function lookupSire(name){
   if(!name) return null;
   if(SIRE_DB[name]) return{...SIRE_DB[name],key:name};
@@ -850,11 +933,11 @@ function buildBloodRanking(bias){
 // ══════════════════════════════════════════════
 function lapColor(v, avg){
   const d=v-avg;
-  if(d<-0.5) return"#3ddb6a"; // 速い
+  if(d<-0.5) return"#3ddb6a";
   if(d<0)    return"#8acd6a";
   if(d<0.5)  return"#d4a820";
   if(d<1.0)  return"#e07a3a";
-  return"#e03a3a"; // 遅い
+  return"#e03a3a";
 }
 
 function renderLapBar(laps){
@@ -903,14 +986,14 @@ function sortBloodArr(arr,k){
 function gateStyle(waku){
   const styles=[
     "",
-    "background:#ffffff;color:#000000;border:2px solid #999", // 1枠 白
-    "background:#111111;color:#ffffff;border:2px solid #111", // 2枠 黒
-    "background:#dd0000;color:#ffffff;border:2px solid #dd0000", // 3枠 赤
-    "background:#0044cc;color:#ffffff;border:2px solid #0044cc", // 4枠 青
-    "background:#eecc00;color:#000000;border:2px solid #ccaa00", // 5枠 黄
-    "background:#009933;color:#ffffff;border:2px solid #009933", // 6枠 緑
-    "background:#ff6600;color:#ffffff;border:2px solid #ff6600", // 7枠 橙
-    "background:#ff69b4;color:#000000;border:2px solid #ee5599", // 8枠 ピンク
+    "background:#ffffff;color:#000000;border:2px solid #999",
+    "background:#111111;color:#ffffff;border:2px solid #111",
+    "background:#dd0000;color:#ffffff;border:2px solid #dd0000",
+    "background:#0044cc;color:#ffffff;border:2px solid #0044cc",
+    "background:#eecc00;color:#000000;border:2px solid #ccaa00",
+    "background:#009933;color:#ffffff;border:2px solid #009933",
+    "background:#ff6600;color:#ffffff;border:2px solid #ff6600",
+    "background:#ff69b4;color:#000000;border:2px solid #ee5599",
   ];
   return styles[waku]||"background:#888;color:#fff;border:2px solid #666";
 }
@@ -932,7 +1015,7 @@ function renderAgari(){
     <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
   </div>`:"";
 
-  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  let html=renderRaceInfoBanner()+rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["avgA","🔥 上り平均"],["bestA","💨 最速上り"],["bias","🏟 バイアス"],["consist","📊 安定度"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortAgari===k?"on":"off"}" onclick="setSortAgari('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">印は総合スコア順。バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -966,6 +1049,7 @@ function renderAgari(){
         <div class="h-right">
           <div class="h-jockey">${h.jockey||""}</div>
           <div class="h-trainer">${h.trainer||""}</div>
+          ${h.popularity?`<div style="font-size:10px;font-weight:700;color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気 ${h.odds?h.odds+"倍":""}</div>`:(h.odds?`<div style="font-size:10px;color:var(--gold)">${h.odds}倍</div>`:"")}
         </div>
         <div class="h-score" style="color:${rk.color}">${h.total}</div>
       </div>
@@ -980,6 +1064,7 @@ function renderAgari(){
         <span>参照走数: <b>${h.sampleCount||0}走</b></span>
         <span>父: <b style="color:#4a20a0">${h.sire||"不明"}</b></span>
         <span>オッズ: <b style="color:#c07010">${h.odds?h.odds+"倍":"---"}</b></span>
+        ${h.popularity?`<span>人気: <b style="color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気</b></span>`:""}
       </div>
       ${pastItems.length?`<div class="past-box">${pastItems.join(" ／ ")}</div>`:""}
     </div>`;
@@ -1004,7 +1089,7 @@ function renderLap(){
     <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
   </div>`:"";
 
-  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  let html=renderRaceInfoBanner()+rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["back","🔥 後半3F平均"],["bestBack","💨 最速後半3F"],["fig","⏱ スピード指数"],["pace","🎯 ペース適性"],["dist","📏 距離適性"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortLap===k?"on":"off"}" onclick="setSortLap('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">本格ハロン別ラップ分析。条件: ${state.trackType}${state.distance}m ${state.cond} / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -1029,6 +1114,7 @@ function renderLap(){
         <div class="h-right">
           <div class="h-jockey">${h.jockey||""}</div>
           <div class="h-trainer">${h.trainer||""}</div>
+          ${h.popularity?`<div style="font-size:10px;font-weight:700;color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気 ${h.odds?h.odds+"倍":""}</div>`:(h.odds?`<div style="font-size:10px;color:var(--gold)">${h.odds}倍</div>`:"")}
         </div>
         <div class="h-score" style="color:${rk.color}">${h.total}</div>
       </div>
@@ -1042,7 +1128,6 @@ function renderLap(){
         <div class="chip">📏 距離適性 <b>${h.distMatch||"---"}点</b></div>
       </div>`;
 
-    // 直近ラップを表示
     if(h.recentLaps&&h.recentLaps.length>=3){
       html+=`<div class="lap-box">
         <div class="lap-title">RECENT LAPS — 直近ラップ詳細</div>
@@ -1060,6 +1145,7 @@ function renderLap(){
         <span>参照走数: <b>${h.sampleCount||0}走</b></span>
         <span>父: <b style="color:#4a20a0">${h.sire||"不明"}</b></span>
         <span>オッズ: <b style="color:#c07010">${h.odds?h.odds+"倍":"---"}</b></span>
+        ${h.popularity?`<span>人気: <b style="color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気</b></span>`:""}
       </div>
     </div>`;
   });
@@ -1083,7 +1169,7 @@ function renderBlood(){
     <span style="font-size:11px;color:#3a6a4a">${rr.note}</span>
   </div>`:"";
 
-  let html=rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
+  let html=renderRaceInfoBanner()+rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["bsmatch","🏟 バイアス合致"],["distc","📏 距離適性"],["surfc","🌿 芝ダ適性"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortBlood===k?"on":"off"}" onclick="setSortBlood('${k}')">${l}</button>`).join("")}
   </div><div class="sort-note">父馬DBなし＝参考値（グレー表示）。条件: ${state.course} ${state.trackType} ${state.distance}m / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
@@ -1152,6 +1238,45 @@ function renderBiasTable(){
   document.getElementById("bias-tbl-el").innerHTML=html+"</tbody>";
 }
 
+
+// ══════════════════════════════════════════════
+// ★ レース情報バナー（各分析タブ上部）v2.2
+// ══════════════════════════════════════════════
+function renderRaceInfoBanner(){
+  const race=races.find(r=>r.id===activeRaceId);
+  if(!race||!getHorses().length) return "";
+  const bias=getEffBias();
+  const biasColors={
+    "内・逃げ先行有利":"#5a9aff","外・先行有利":"#4acc8a",
+    "フラット":"#aaddaa","内・差し有利":"#cc88ff","外・差し有利":"#ffaa44"
+  };
+  const bc=biasColors[bias]||"#aaddaa";
+  const tt=state.trackType==="ダ"?"🟤 ダート":"🌿 芝";
+  const totalRuns=getHorses().reduce((s,h)=>s+h.runs.length,0);
+  const raceIdx=races.findIndex(r=>r.id===activeRaceId)+1;
+  return `<div style="background:linear-gradient(135deg,#0a2e18 0%,#0d3d20 100%);
+    border:2px solid #3ddb6a44;border-radius:10px;padding:13px 18px;
+    margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:9px;color:#4a9a60;letter-spacing:3px;margin-bottom:3px">📋 RACE #${raceIdx}</div>
+      <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:1px">${race.label}</div>
+    </div>
+    <div style="width:2px;height:36px;background:#3ddb6a33;flex-shrink:0"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px;font-weight:700">
+      <span style="color:#aaffcc">🏟 ${state.course}</span>
+      <span style="color:#aaffcc">${tt} ${state.distance}m</span>
+      <span style="color:#aaffcc">🌤 ${state.cond}</span>
+      <span style="color:#6ab87a">📅 ${state.kaisaiDay}日目</span>
+      <span style="color:${bc};background:rgba(255,255,255,.1);padding:2px 10px;
+        border-radius:5px;border:1px solid ${bc}44">⚡ ${bias}</span>
+    </div>
+    <div style="margin-left:auto;text-align:right;font-size:10px;color:#4a9a60;line-height:1.7">
+      <div><b style="color:#aaffcc">${getHorses().length}</b> 頭出走</div>
+      <div><b style="color:#aaffcc">${totalRuns}</b> 走分析</div>
+    </div>
+  </div>`;
+}
+
 function renderBiasUI(){
   const ab=getAutoBias();
   document.getElementById("bias-info").innerHTML=
@@ -1182,20 +1307,23 @@ function renderRaceTabs(){
   const wrap=document.getElementById("race-tab-wrap");
   if(!races.length){wrap.style.display="none";return;}
   wrap.style.display="flex";
-  wrap.innerHTML=races.map(r=>`
-    <button class="race-tab-btn ${r.id===activeRaceId?"race-tab-on":"race-tab-off"}"
-      onclick="switchRace(${r.id})">
-      ${r.label}
-      <span onclick="removeRace(event,${r.id})" style="margin-left:6px;opacity:.6;font-size:10px;
+  const tabsHtml=races.map((r,i)=>{
+    const lbl=(r.label&&r.label.trim())?r.label:`レース${i+1}`;
+    return `<button class="race-tab-btn ${r.id===activeRaceId?"race-tab-on":"race-tab-off"}"
+      onclick="switchRace(${r.id})" title="${lbl}">
+      <span style="font-size:9px;opacity:.7;margin-right:3px">#${i+1}</span>${lbl}
+      <span onclick="removeRace(event,${r.id})" style="margin-left:6px;opacity:.5;font-size:10px;
         cursor:pointer;font-weight:400" title="削除">✕</span>
-    </button>`).join("");
+    </button>`;
+  }).join("");
+  wrap.innerHTML=`<span style="font-size:10px;color:#3a6a4a;letter-spacing:2px;font-weight:700;
+    align-self:center;margin-right:6px;white-space:nowrap;">📋 読込済みレース</span>`+tabsHtml;
 }
 
 function switchRace(id){
   activeRaceId=id;
   const race=races.find(r=>r.id===id);
   if(race){
-    // そのレースの設定を復元
     state.course   =race.state.course;
     state.trackType=race.state.trackType;
     state.distance =race.state.distance;
@@ -1232,7 +1360,7 @@ function removeRace(e,id){
 }
 
 // ══════════════════════════════════════════════
-// ファイル処理
+// ファイル処理 ★修正版
 // ══════════════════════════════════════════════
 function onFileChange(type){
   const file=document.getElementById(type==="entry"?"file-entry":"file-zenba").files[0];
@@ -1257,6 +1385,63 @@ async function handleFiles(){
     const rows1=parseCSV(t1);
     const rows2=parseCSV(t2);
 
+    // ★ ファイル名 → CSV の順でレース情報を自動検出
+    const fnInfo=parseInfoFromFilename(rawEntry.name||"");
+    const csvInfo=parseRaceInfoFromEntry(rows1);
+    // ファイル名の競馬場を優先、CSVで補完
+    const raceInfo={
+      course: fnInfo.course||csvInfo.course,
+      trackType: csvInfo.trackType,
+      dist: csvInfo.dist,
+    };
+    const raceNo=fnInfo.raceNo;
+    let autoDetected=false;
+    const detectedItems=[];
+
+    if(raceInfo.course){
+      state.course=raceInfo.course;
+      const elC=document.getElementById("sel-course");
+      if(![...elC.options].some(o=>o.value===raceInfo.course)){
+        const opt=document.createElement("option");
+        opt.value=raceInfo.course;opt.textContent=raceInfo.course;
+        elC.appendChild(opt);
+      }
+      elC.value=raceInfo.course;
+      detectedItems.push(raceInfo.course+(raceNo?` ${raceNo}R`:""));autoDetected=true;
+    }
+    if(raceInfo.trackType){
+      state.trackType=raceInfo.trackType;
+      const elT=document.getElementById("sel-type");
+      elT.value=raceInfo.trackType;
+      if(elT.value!==raceInfo.trackType){
+        [...elT.options].forEach(o=>{if(o.textContent.includes("ダ")||o.value==="ダ") o.selected=raceInfo.trackType==="ダ";});
+      }
+      detectedItems.push(raceInfo.trackType==="ダ"?"ダート":"芝");autoDetected=true;
+    }
+    if(raceInfo.dist){
+      state.distance=raceInfo.dist;
+      const distSel=document.getElementById("sel-dist");
+      if(![...distSel.options].some(o=>o.value===raceInfo.dist)){
+        const opt=document.createElement("option");
+        opt.value=raceInfo.dist;opt.textContent=raceInfo.dist;
+        const opts=[...distSel.options].map(o=>parseInt(o.value)).filter(v=>!isNaN(v));
+        const insertIdx=opts.findIndex(v=>v>parseInt(raceInfo.dist));
+        if(insertIdx>=0) distSel.insertBefore(opt,distSel.options[insertIdx]);
+        else distSel.appendChild(opt);
+      }
+      distSel.value=raceInfo.dist;
+      detectedItems.push(raceInfo.dist+"m");autoDetected=true;
+    }
+
+    // 自動検出バッジを表示
+    const badge=document.getElementById("auto-detect-badge");
+    if(autoDetected&&detectedItems.length){
+      badge.textContent="🔍 "+detectedItems.join(" · ")+" 自動検出";
+      badge.style.display="inline-block";
+      setTimeout(()=>{badge.style.display="none";},6000);
+    }
+    renderBiasUI();
+
     // 出馬表パース
     const entryHorses=parseEntryCSV(rows1);
     if(!entryHorses.length){
@@ -1271,7 +1456,7 @@ async function handleFiles(){
       btn.textContent="🔍 CSV分析開始";btn.disabled=false;return;
     }
 
-    // 馬名で結合
+    // 馬名で結合 + 全馬CSVから血統情報を補完
     const newHorses=entryHorses.map(e=>{
       const nameTrim=e.name.trim();
       const zenba=Object.values(zenbaGroups).find(z=>
@@ -1280,42 +1465,45 @@ async function handleFiles(){
       );
       const runs=zenba?zenba.runs:[];
       const style=inferStyle(runs);
-      return{...e,runs,style};
+      // 血統情報: 出馬表に含まれない場合は全馬CSVから補完
+      const sire=e.sire||zenba?.sire||"";
+      const dam=e.dam||zenba?.dam||"";
+      const bmsire=e.bmsire||zenba?.bmsire||"";
+      return{...e,runs,style,sire,dam,bmsire};
     });
 
     const matched=newHorses.filter(h=>h.runs.length>0).length;
     const totalRuns=newHorses.reduce((s,h)=>s+h.runs.length,0);
 
-    // レースラベル生成：全馬CSVの最初の行からレース名を取得
-    // col8=レース名、col6=場所、col41=距離 (全馬CSV形式)
-    let label=`${state.course} ${state.trackType}${state.distance}m`;
-    if(rows2.length>0){
-      const r0=rows2[0];
-      const raceName=(r0[8]||"").trim();   // レース名
-      const venue=(r0[6]||"").trim();      // 場所
-      const dist=(r0[41]||"").trim();      // 距離
-      const tt=(r0[40]||"").trim();        // 芝ダ
-      if(raceName&&venue&&dist){
-        // "G3"等のグレード表記を除去して短縮
-        const shortName=raceName.replace(/Ｇ[１２３]|G[123]|\(L\)|OP\(L\)|OP/g,"").trim();
-        label=`${venue} ${shortName||raceName}`;
-      } else if(venue&&dist){
-        label=`${venue} ${tt}${dist}m`;
-      } else {
-        // ファイル名からレース名を生成
-        const fname=rawEntry.name.replace(/\.csv$/i,"")
-          .replace(/出馬.*$/,"").replace(/^\d+_/,"").trim();
-        if(fname) label=fname;
-      }
-    }
-    // ファイル名フォールバック
-    if(!label||label===`${state.course} ${state.trackType}${state.distance}m`){
-      const fname=rawEntry.name.replace(/\.csv$/i,"")
-        .replace(/出馬.*$/,"").replace(/^\d+_/,"").trim();
-      if(fname) label=fname;
-    }
+    // ★ レースラベル生成 v2.4
+    // 優先順位: ①手動入力レース名 → ②ファイル名の競馬場+R番号 → ③場所+コース+距離
+    const courseLabel=state.course||"";
+    const ttLabel=state.trackType||"";
+    const distLabel=state.distance||"";
+    const manualRaceName=(document.getElementById("race-name-input")||{}).value?.trim()||"";
+    let label;
 
-    // レースを追加
+    if(manualRaceName&&courseLabel&&raceNo){
+      // 例: "阪神 11R アンタレスステークス"
+      label=`${courseLabel} ${raceNo}R ${manualRaceName}`;
+    } else if(manualRaceName&&courseLabel){
+      label=`${courseLabel} ${manualRaceName}`;
+    } else if(manualRaceName){
+      label=manualRaceName;
+    } else if(courseLabel&&raceNo){
+      label=`${courseLabel} ${raceNo}R`;
+    } else if(courseLabel){
+      label=distLabel?`${courseLabel} ${ttLabel}${distLabel}m`:courseLabel;
+    } else {
+      const fnBaseName=(rawEntry.name||"").replace(/\.csv$/i,"").trim();
+      label=fnBaseName||`レース${raceCounter+1}`;
+    }
+    // 空ラベル保護
+    if(!label||!label.trim()) label=`レース${raceCounter+1}`;
+    // 読み込み後にレース名入力欄をクリア
+    setTimeout(()=>{const el=document.getElementById("race-name-input");if(el)el.value="";},500);
+
+    // レースを追加（現在のstateのコピーを保存）
     raceCounter++;
     const newRace={
       id:raceCounter,
@@ -1331,7 +1519,9 @@ async function handleFiles(){
     renderBiasUI();
     renderAll();
     switchTab("agari");
-    flashMsg(`✓ ${newHorses.length}頭読込完了（${matched}頭マッチ・${totalRuns}走分析）`);
+
+    const detectMsg=autoDetected?` ／ ${state.course} ${state.trackType}${state.distance}m 自動検出`:"";
+    flashMsg(`✓ ${newHorses.length}頭読込完了（${matched}頭マッチ・${totalRuns}走分析）${detectMsg}`);
 
     // ファイル入力をリセット
     document.getElementById("file-entry").value="";
