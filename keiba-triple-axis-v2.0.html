@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>競馬3軸分析 v2.2</title>
+<title>競馬3軸分析 v2.3</title>
 <style>
 :root {
   --bg:#e8dfc8;--bg2:#eef7f0;--bg3:#eef7f0;
@@ -132,15 +132,15 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 .horse-list{display:flex;flex-direction:column;gap:6px;}
 .h-card{border-radius:10px;padding:11px 13px;border-left:6px solid;}
 .h-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.h-num{font-size:12px;color:#3a6a4a;width:20px;text-align:center;}
-.h-gate{font-size:11px;width:36px;text-align:center;border-radius:4px;padding:2px 4px;font-weight:700;}
-.h-rank{font-size:13px;font-weight:900;min-width:72px;}
-.h-name{flex:1;font-size:14px;font-weight:900;color:#0a1a0a;}
-.h-style{font-size:10px;margin-left:4px;padding:2px 6px;border-radius:4px;font-weight:700;}
-.h-right{text-align:right;font-size:11px;}
+.h-num{font-size:13px;color:#3a6a4a;width:20px;text-align:center;}
+.h-gate{font-size:12px;width:38px;text-align:center;border-radius:4px;padding:2px 5px;font-weight:700;}
+.h-rank{font-size:14px;font-weight:900;min-width:78px;}
+.h-name{flex:1;font-size:15px;font-weight:900;color:#0a1a0a;}
+.h-style{font-size:11px;margin-left:4px;padding:2px 7px;border-radius:4px;font-weight:700;}
+.h-right{text-align:right;font-size:12px;}
 .h-jockey{font-weight:700;color:#1a3a2a;}
-.h-trainer{font-size:10px;color:#3a6a4a;}
-.h-score{font-size:22px;font-weight:900;min-width:40px;text-align:right;}
+.h-trainer{font-size:11px;color:#3a6a4a;}
+.h-score{font-size:24px;font-weight:900;min-width:44px;text-align:right;}
 
 /* SCORE BAR */
 .s-bar{height:5px;background:rgba(0,0,0,.08);border-radius:3px;margin:7px 0;}
@@ -148,7 +148,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 
 /* CHIPS */
 .chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
-.chip{font-size:10px;background:#eef7f0;border:1px solid #8ac4a0;border-radius:4px;padding:2px 6px;color:#2a5a3a;}
+.chip{font-size:11px;background:#eef7f0;border:1px solid #8ac4a0;border-radius:4px;padding:3px 8px;color:#2a5a3a;}
 .chip b{color:#0a7a5a;}
 .chip.gold b{color:#c07010;}
 .chip.red b{color:#cc2222;}
@@ -224,8 +224,8 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 <body>
 
 <div id="header">
-  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.2</div>
-  <h1 class="hd-title">競馬3軸分析 v2.2</h1>
+  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.3</div>
+  <h1 class="hd-title">競馬3軸分析 v2.3</h1>
   <div class="hd-desc">ラップ(ハロン別) ／ 上り3ハロン ／ 血統 × バイアス統合分析</div>
   <div id="flash"></div>
 </div>
@@ -329,6 +329,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
     <button class="tab-btn off" onclick="switchTab('lap')">⏱ ラップ分析</button>
     <button class="tab-btn off" onclick="switchTab('blood')">🧬 血統分析</button>
     <button class="tab-btn off" onclick="switchTab('bias')">🏟 バイアス表</button>
+    <button class="tab-btn off" onclick="switchTab('result')">🏆 結果・配当</button>
   </div>
 
   <div id="tab-agari" class="tab-panel on">
@@ -353,6 +354,47 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
     <div class="sec-sub">TRACK BIAS DATABASE</div>
     <div class="sec-title" style="margin-bottom:16px">各競馬場のバイアス傾向</div>
     <div class="ov-x"><table class="bias-tbl" id="bias-tbl-el"></table></div>
+  </div>
+
+  <div id="tab-result" class="tab-panel">
+    <div class="sec-sub">RACE RESULT &amp; PAYOUTS</div>
+    <div class="sec-title">🏆 レース結果・配当</div>
+    <div class="sec-desc">レース終了後に着順と配当を入力してください</div>
+    <div id="result-content">
+      <!-- 着順入力 -->
+      <div style="background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+        <div style="font-size:11px;letter-spacing:3px;color:#0d5a20;margin-bottom:12px;font-weight:900;">🥇 着順入力</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div><label class="lbl">1着 馬番</label><input type="number" id="res-1st" class="ipt" style="width:70px" min="1" max="18" placeholder="例: 5"></div>
+          <div><label class="lbl">2着 馬番</label><input type="number" id="res-2nd" class="ipt" style="width:70px" min="1" max="18" placeholder="例: 11"></div>
+          <div><label class="lbl">3着 馬番</label><input type="number" id="res-3rd" class="ipt" style="width:70px" min="1" max="18" placeholder="例: 3"></div>
+        </div>
+      </div>
+      <!-- 配当入力 -->
+      <div style="background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+        <div style="font-size:11px;letter-spacing:3px;color:#0d5a20;margin-bottom:12px;font-weight:900;">💰 配当入力（円）</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+          <div><label class="lbl">単勝</label><input type="text" id="pay-tansho" class="ipt" placeholder="例: 1,230"></div>
+          <div><label class="lbl">複勝 1着</label><input type="text" id="pay-fukusho1" class="ipt" placeholder="例: 340"></div>
+          <div><label class="lbl">複勝 2着</label><input type="text" id="pay-fukusho2" class="ipt" placeholder="例: 210"></div>
+          <div><label class="lbl">複勝 3着</label><input type="text" id="pay-fukusho3" class="ipt" placeholder="例: 180"></div>
+          <div><label class="lbl">枠連</label><input type="text" id="pay-wakuren" class="ipt" placeholder="例: 2,540"></div>
+          <div><label class="lbl">馬連</label><input type="text" id="pay-umaren" class="ipt" placeholder="例: 8,560"></div>
+          <div><label class="lbl">馬単</label><input type="text" id="pay-umatan" class="ipt" placeholder="例: 15,200"></div>
+          <div><label class="lbl" style="color:#c07010;font-weight:900">ワイド 1-2着</label><input type="text" id="pay-wide12" class="ipt" placeholder="例: 1,430"></div>
+          <div><label class="lbl" style="color:#c07010;font-weight:900">ワイド 1-3着</label><input type="text" id="pay-wide13" class="ipt" placeholder="例: 760"></div>
+          <div><label class="lbl" style="color:#c07010;font-weight:900">ワイド 2-3着</label><input type="text" id="pay-wide23" class="ipt" placeholder="例: 530"></div>
+          <div><label class="lbl">三連複</label><input type="text" id="pay-sanrenpuku" class="ipt" placeholder="例: 28,300"></div>
+          <div><label class="lbl">三連単</label><input type="text" id="pay-sanrentan" class="ipt" placeholder="例: 124,500"></div>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn" onclick="saveResult()">✅ 結果を保存・表示</button>
+          <button class="btn sec" style="margin-left:8px" onclick="clearResult()">🗑 クリア</button>
+        </div>
+      </div>
+      <!-- 結果表示エリア -->
+      <div id="result-display"></div>
+    </div>
   </div>
 
   <div class="footer">━━ KEIBA TRIPLE AXIS ANALYSIS v2.1 ━━</div>
@@ -823,7 +865,7 @@ function buildAgariRanking(bias){
   const nb=normalizeLow(computed.map(h=>h.bestAgari));
   return computed.map((h,i)=>{
     const na2=na[i]??55,nb2=nb[i]??55;
-    const total=Math.round(na2*0.40+nb2*0.25+(h.consistency||50)*0.20+(h.biasScore||56)*0.15);
+    const total=Math.min(100,Math.round(na2*0.40+nb2*0.25+(h.consistency||50)*0.20+(h.biasScore||56)*0.15));
     return{...h,normAvg:na2,normBest:nb2,total};
   }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRank(i)}));
 }
@@ -882,7 +924,7 @@ function buildLapRanking(bias){
   const nfig=normalizeHigh(computed.map(h=>h.avgFig));
   return computed.map((h,i)=>{
     const nb2=nb[i]??55,nbest2=nbest[i]??55,nfig2=nfig[i]??55;
-    const total=Math.round(nb2*0.35+nbest2*0.15+(h.lapConsistency||50)*0.20+nfig2*0.15+(h.distMatch||40)*0.15+(h.paceCompat||56)*0.15-(h.biasScore||56)*0+((h.biasScore||56)*0.05));
+    const total=Math.min(100,Math.round(nb2*0.30+nbest2*0.15+(h.lapConsistency||50)*0.20+nfig2*0.15+(h.distMatch||40)*0.10+(h.paceCompat||56)*0.05+(h.biasScore||56)*0.05));
     return{...h,normBack:nb2,normBackBest:nbest2,normFig:nfig2,total};
   }).sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRank(i)}));
 }
@@ -924,7 +966,7 @@ function buildBloodRanking(bias){
   const dist=state.distance,tt=state.trackType;
   const computed=getHorses().map(h=>({...h,...computeBlood(h,bias,dist,tt)}));
   const norm=normalizeHigh(computed.map(h=>h.bloodScore));
-  return computed.map((h,i)=>({...h,total:norm[i]??52}))
+  return computed.map((h,i)=>({...h,total:Math.min(100,norm[i]??52)}))
     .sort((a,b)=>b.total-a.total).map((h,i)=>({...h,rank:getRank(i)}));
 }
 
@@ -1189,6 +1231,7 @@ function renderBlood(){
         <div class="h-right">
           <div class="h-jockey">${h.jockey||""}</div>
           <div class="h-trainer">${h.trainer||""}</div>
+          ${h.popularity?`<div style="font-size:11px;font-weight:700;color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気 ${h.odds?h.odds+"倍":""}</div>`:(h.odds?`<div style="font-size:11px;color:var(--gold)">${h.odds}倍</div>`:"")}
         </div>
         <div class="h-score" style="color:${bc}">${h.sireFound?h.total:"---"}</div>
       </div>
@@ -1388,6 +1431,8 @@ async function handleFiles(){
     // ★ ファイル名 → CSV の順でレース情報を自動検出
     const fnInfo=parseInfoFromFilename(rawEntry.name||"");
     const csvInfo=parseRaceInfoFromEntry(rows1);
+    // ★ レース名自動検出（CSV内のカタカナ文字列から）
+    const autoRaceName=parseRaceNameFromEntry(rows1);
     // ファイル名の競馬場を優先、CSVで補完
     const raceInfo={
       course: fnInfo.course||csvInfo.course,
@@ -1475,21 +1520,23 @@ async function handleFiles(){
     const matched=newHorses.filter(h=>h.runs.length>0).length;
     const totalRuns=newHorses.reduce((s,h)=>s+h.runs.length,0);
 
-    // ★ レースラベル生成 v2.4
-    // 優先順位: ①手動入力レース名 → ②ファイル名の競馬場+R番号 → ③場所+コース+距離
+    // ★ レースラベル生成 v2.5
+    // 優先順位: ①手動入力レース名 → ②CSV自動検出レース名 → ③場所+R番号 → ④場所+距離
     const courseLabel=state.course||"";
     const ttLabel=state.trackType||"";
     const distLabel=state.distance||"";
     const manualRaceName=(document.getElementById("race-name-input")||{}).value?.trim()||"";
+    // 手動入力がなければCSV自動検出レース名を使用
+    const effectiveRaceName=manualRaceName||autoRaceName||"";
     let label;
 
-    if(manualRaceName&&courseLabel&&raceNo){
+    if(effectiveRaceName&&courseLabel&&raceNo){
       // 例: "阪神 11R アンタレスステークス"
-      label=`${courseLabel} ${raceNo}R ${manualRaceName}`;
-    } else if(manualRaceName&&courseLabel){
-      label=`${courseLabel} ${manualRaceName}`;
-    } else if(manualRaceName){
-      label=manualRaceName;
+      label=`${courseLabel} ${raceNo}R ${effectiveRaceName}`;
+    } else if(effectiveRaceName&&courseLabel){
+      label=`${courseLabel} ${effectiveRaceName}`;
+    } else if(effectiveRaceName){
+      label=effectiveRaceName;
     } else if(courseLabel&&raceNo){
       label=`${courseLabel} ${raceNo}R`;
     } else if(courseLabel){
@@ -1569,13 +1616,114 @@ function exportCSV(){
 }
 
 // ══════════════════════════════════════════════
+// 結果・配当
+// ══════════════════════════════════════════════
+function saveResult(){
+  const v1=document.getElementById("res-1st").value;
+  const v2=document.getElementById("res-2nd").value;
+  const v3=document.getElementById("res-3rd").value;
+
+  const g=id=>document.getElementById(id).value.trim()||"---";
+  const payouts=[
+    {label:"単勝",            key:"pay-tansho",     color:"#cc2222"},
+    {label:"複勝（1着）",     key:"pay-fukusho1",   color:"#cc2222"},
+    {label:"複勝（2着）",     key:"pay-fukusho2",   color:"#c07010"},
+    {label:"複勝（3着）",     key:"pay-fukusho3",   color:"#8a7a00"},
+    {label:"枠連",            key:"pay-wakuren",     color:"#1a5a9a"},
+    {label:"馬連",            key:"pay-umaren",      color:"#1a5a9a"},
+    {label:"馬単",            key:"pay-umatan",      color:"#1a5a9a"},
+    {label:"ワイド 1-2着",    key:"pay-wide12",      color:"#c07010", wide:true},
+    {label:"ワイド 1-3着",    key:"pay-wide13",      color:"#c07010", wide:true},
+    {label:"ワイド 2-3着",    key:"pay-wide23",      color:"#c07010", wide:true},
+    {label:"三連複",          key:"pay-sanrenpuku",  color:"#6a40c0"},
+    {label:"三連単",          key:"pay-sanrentan",   color:"#6a40c0"},
+  ];
+
+  // 着順の馬名を取得
+  const horses=getHorses();
+  function getHorseName(bnum){
+    if(!bnum) return "---";
+    const h=horses.find(x=>String(x.bnum)===String(bnum));
+    return h?`${bnum}番 ${h.name}`:bnum+"番";
+  }
+
+  // 予想との一致確認
+  const agariRanked=getHorses().length?buildAgariRanking(getEffBias()):[];
+  const lapRanked=getHorses().length?buildLapRanking(getEffBias()):[];
+  const bloodRanked=getHorses().length?buildBloodRanking(getEffBias()):[];
+
+  function hitCheck(ranked,tops){
+    const honmei=ranked[0]?.bnum;
+    const topNums=ranked.slice(0,3).map(h=>String(h.bnum));
+    return tops.map(t=>topNums.includes(String(t))?"✅":"❌").join(" ");
+  }
+
+  const topsArr=[v1,v2,v3].filter(Boolean);
+
+  let html=`<div style="background:linear-gradient(135deg,#0a2e18,#0d3d20);border:2px solid #3ddb6a44;
+    border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+    <div style="font-size:10px;color:#4a9a60;letter-spacing:3px;margin-bottom:8px">🏆 RACE RESULT</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="text-align:center"><div style="font-size:10px;color:#4a9a60;margin-bottom:4px">🥇 1着</div>
+        <div style="font-size:18px;font-weight:900;color:#fff">${getHorseName(v1)||"---"}</div></div>
+      <div style="text-align:center"><div style="font-size:10px;color:#4a9a60;margin-bottom:4px">🥈 2着</div>
+        <div style="font-size:18px;font-weight:900;color:#aaffcc">${getHorseName(v2)||"---"}</div></div>
+      <div style="text-align:center"><div style="font-size:10px;color:#4a9a60;margin-bottom:4px">🥉 3着</div>
+        <div style="font-size:18px;font-weight:900;color:#aaffcc">${getHorseName(v3)||"---"}</div></div>
+    </div>
+    ${topsArr.length&&agariRanked.length?`<div style="font-size:11px;color:#6ab87a;line-height:2">
+      上り3F予想: ${hitCheck(agariRanked,topsArr)} （◎${agariRanked[0]?.name||"-"}）<br>
+      ラップ予想: ${hitCheck(lapRanked,topsArr)} （◎${lapRanked[0]?.name||"-"}）<br>
+      血統予想: ${hitCheck(bloodRanked,topsArr)} （◎${bloodRanked[0]?.name||"-"}）
+    </div>`:""}
+  </div>`;
+
+  // 配当表示
+  html+=`<div style="background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:16px 20px;">
+    <div style="font-size:11px;letter-spacing:3px;color:#0d5a20;margin-bottom:12px;font-weight:900;">💰 配当一覧</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr>
+        <th style="background:#0d3d20;color:#fff;padding:8px 12px;text-align:left;border-radius:4px 0 0 4px">券種</th>
+        <th style="background:#0d3d20;color:#fff;padding:8px 12px;text-align:right;border-radius:0 4px 4px 0">払戻金</th>
+      </tr></thead><tbody>`;
+
+  payouts.forEach(p=>{
+    const val=g(p.key);
+    if(val==="---") return;
+    const isWide=p.wide;
+    html+=`<tr style="${isWide?"background:rgba(192,112,16,0.08);":""}">
+      <td style="padding:8px 12px;border-bottom:1px solid rgba(0,0,0,0.06);
+        font-weight:${isWide?900:700};color:${p.color}">${isWide?"⭐ ":""} ${p.label}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid rgba(0,0,0,0.06);
+        text-align:right;font-weight:900;font-size:${isWide?"16":"14"}px;color:${p.color}">
+        ¥${val}</td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div>`;
+
+  document.getElementById("result-display").innerHTML=html;
+  flashMsg("✅ 結果を保存しました");
+}
+
+function clearResult(){
+  ["res-1st","res-2nd","res-3rd","pay-tansho","pay-fukusho1","pay-fukusho2","pay-fukusho3",
+   "pay-wakuren","pay-umaren","pay-umatan","pay-wide12","pay-wide13","pay-wide23",
+   "pay-sanrenpuku","pay-sanrentan"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value="";
+  });
+  document.getElementById("result-display").innerHTML="";
+}
+
+// ══════════════════════════════════════════════
 // タブ切り替え
 // ══════════════════════════════════════════════
 function switchTab(tab){
   document.querySelectorAll(".tab-panel").forEach(el=>{el.classList.remove("on");el.classList.add("off");});
   document.querySelectorAll(".tab-btn").forEach(el=>{el.classList.remove("on");el.classList.add("off");});
   document.getElementById("tab-"+tab).classList.add("on");
-  const names=["agari","lap","blood","bias"];
+  const names=["agari","lap","blood","bias","result"];
   const idx=names.indexOf(tab);
   const btns=document.querySelectorAll(".tab-btn");
   if(idx>=0){btns[idx].classList.add("on");btns[idx].classList.remove("off");}
