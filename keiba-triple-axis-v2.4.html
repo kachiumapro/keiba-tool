@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>競馬3軸分析 v2.3</title>
+<title>競馬3軸分析 v2.4</title>
 <style>
 :root {
   --bg:#e8dfc8;--bg2:#eef7f0;--bg3:#eef7f0;
@@ -40,6 +40,7 @@ select,input,button,textarea{font-family:inherit;}
 .badge.b1{border-color:#3ddb6a;color:#3ddb6a;}
 .badge.b2{border-color:#e08020;color:#e08020;}
 .badge.b3{border-color:#8a60d0;color:#8a60d0;}
+.badge.b4{border-color:#3abaff;color:#3abaff;}
 
 /* FLASH */
 #flash{margin:0 auto;max-width:800px;display:none;border-radius:8px;padding:8px 20px;
@@ -224,8 +225,8 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 <body>
 
 <div id="header">
-  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.3</div>
-  <h1 class="hd-title">競馬3軸分析 v2.3</h1>
+  <div class="hd-sub">KEIBA TRIPLE AXIS ANALYSIS v2.4</div>
+  <h1 class="hd-title">競馬3軸分析 v2.4</h1>
   <div class="hd-desc">ラップ(ハロン別) ／ 上り3ハロン ／ 血統 × バイアス統合分析</div>
   <div id="flash"></div>
 </div>
@@ -267,6 +268,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
       <div class="btn-row" id="action-btns" style="display:none">
         <button class="btn sec" onclick="exportCSV()">⬇ CSV出力</button>
         <button class="btn sec" onclick="window.print()">🖨 印刷</button>
+        <button class="btn sec" onclick="if(confirm('読込済みレースをすべて消去しますか？')){races=[];activeRaceId=null;raceCounter=0;clearRacesStorage();renderRaceTabs();document.getElementById('action-btns').style.display='none';['agari-content','lap-content','blood-content'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class=\'empty\'><div class=\'empty-icon\'>📂</div>CSVを読み込んでください</div>';});flashMsg('レースデータを全消去しました');}">🗑 全消去</button>
       </div>
     </div>
 
@@ -486,6 +488,37 @@ const state = {
 };
 let rawEntry = null, rawZenba = null;
 
+// ══════════════════════════════════════════════
+// localStorage 永続化（ブラウザ更新後もレースデータを保持）
+// ══════════════════════════════════════════════
+function saveRacesToStorage(){
+  try{
+    // horsesの中のFileオブジェクト等は含まれないので安全にシリアライズ可能
+    const data={races,activeRaceId,raceCounter};
+    localStorage.setItem("keiba3axis_v24_races",JSON.stringify(data));
+  }catch(e){
+    console.warn("[keiba3axis] localStorage保存失敗:",e.message);
+  }
+}
+function loadRacesFromStorage(){
+  try{
+    const raw=localStorage.getItem("keiba3axis_v24_races");
+    if(!raw) return false;
+    const data=JSON.parse(raw);
+    if(!data||!Array.isArray(data.races)||!data.races.length) return false;
+    races=data.races;
+    activeRaceId=data.activeRaceId;
+    raceCounter=data.raceCounter||races.length;
+    return true;
+  }catch(e){
+    console.warn("[keiba3axis] localStorage復元失敗:",e.message);
+    return false;
+  }
+}
+function clearRacesStorage(){
+  try{localStorage.removeItem("keiba3axis_v24_races");}catch(e){}
+}
+
 function getHorses(){
   const race = races.find(r=>r.id===activeRaceId);
   return race ? race.horses : [];
@@ -596,7 +629,7 @@ const VALID_DISTS = [1000,1200,1400,1600,1700,1800,2000,2100,2200,2400,2500,3000
 function parseRaceInfoFromEntry(rows){
   let course=null, dist=null, trackType=null;
 
-  // パス1: ヘッダー行優先 → 全行の順で各セルをスキャン
+  // パス1: ヘッダー行優先 → 全行の順で各セルをスキャン（部分一致対応）
   const headerRows=rows.filter(c=>{
     const w=parseInt(c[0]);
     return isNaN(w)||w<1||w>8;
@@ -605,37 +638,58 @@ function parseRaceInfoFromEntry(rows){
   for(const row of allRows){
     for(const cell of row){
       const s=cell.trim();
-      if(!course && VENUES.includes(s)) course=s;
+      if(!s) continue;
+      // 競馬場名: 部分一致で検出
+      if(!course){for(const v of VENUES){if(s.includes(v)){course=v;break;}}}
+      // コース種別: "ダート"を優先マッチ（馬名の"ダ"誤検知を防止）
       if(!trackType){
-        if(s==="芝") trackType="芝";
-        else if(s==="ダ"||s==="ダート") trackType="ダ";
+        if(s.includes("ダート")||s==="ダ") trackType="ダ";
+        else if(s.includes("芝")&&!s.includes("ダート")) trackType="芝";
       }
+      // 距離: 3〜4桁数値（単体・"1800m"形式・複合セル内）
       if(!dist){
-        const d=parseInt(s);
-        if(!isNaN(d)&&VALID_DISTS.includes(d)) dist=String(d);
+        const dm=s.match(/(?<![0-9])(\d{3,4})(?:m|M)?(?![0-9])/);
+        if(dm){const dv=parseInt(dm[1]);if(VALID_DISTS.includes(dv)) dist=String(dv);}
       }
     }
     if(course&&dist&&trackType) break;
   }
 
-  // パス2: 全行を連結してパターンマッチ（"阪神ダ1800"等の連結形式に対応）
+  // パス2: 全行をスペース結合してパターンマッチ（"阪神ダート1800"等の連結形式に対応）
   if(!course||!dist||!trackType){
     for(const row of rows){
-      const joined=row.join("");
+      const joined=row.join(" ");
       if(!course){for(const v of VENUES){if(joined.includes(v)){course=v;break;}}}
       if(!trackType){
-        if(!joined.includes("ダ")&&joined.includes("芝")) trackType="芝";
-        else if(joined.includes("ダ")) trackType="ダ";
+        // "ダート"を優先マッチ（単純な"ダ"より精度が高い）
+        if(joined.includes("ダート")) trackType="ダ";
+        else if(joined.includes("芝")) trackType="芝";
       }
       if(!dist){
-        const m=joined.match(/(\d{4})m?/);
+        const m=joined.match(/(\d{4})(?:m|M)?(?!\d)/);
         if(m){const d=parseInt(m[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
         if(!dist){
-          const m3=joined.match(/[^\d](\d{3})m/);
+          const m3=joined.match(/[^\d](\d{3})(?:m|M)/i);
           if(m3){const d=parseInt(m3[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
         }
       }
       if(course&&dist&&trackType) break;
+    }
+  }
+
+  // パス3: 全行を通じた最終マッチ（ファイル全体スキャン）
+  if(!course||!dist||!trackType){
+    const allText=rows.map(r=>r.join(" ")).join("\n");
+    if(!course){for(const v of VENUES){if(allText.includes(v)){course=v;break;}}}
+    if(!trackType){
+      if(allText.includes("ダート")) trackType="ダ";
+      else if(/\s芝[0-9]|\n芝\s|[,　]芝[,　\n]/.test(allText)) trackType="芝";
+    }
+    if(!dist){
+      const allMatches=[...allText.matchAll(/(?<!\d)(\d{4})(?:m|M)?(?!\d)/g)];
+      for(const m of allMatches){
+        const d=parseInt(m[1]);if(VALID_DISTS.includes(d)){dist=String(d);break;}
+      }
     }
   }
 
@@ -1388,6 +1442,7 @@ function switchRace(id){
 function removeRace(e,id){
   e.stopPropagation();
   races=races.filter(r=>r.id!==id);
+  saveRacesToStorage(); // ★ 削除後も保存
   if(activeRaceId===id){
     activeRaceId=races.length?races[races.length-1].id:null;
     if(activeRaceId) switchRace(activeRaceId);
@@ -1560,6 +1615,7 @@ async function handleFiles(){
     };
     races.push(newRace);
     activeRaceId=newRace.id;
+    saveRacesToStorage(); // ★ localStorage保存
 
     document.getElementById("action-btns").style.display="flex";
     renderRaceTabs();
@@ -1743,14 +1799,28 @@ function switchTab(tab){
     // アクティブレースの設定も更新
     const race=races.find(r=>r.id===activeRaceId);
     if(race) race.state={...state};
+    saveRacesToStorage(); // ★ 条件変更も保存
     renderBiasUI();
     if(getHorses().length) renderAll();
   });
 });
 
-// 初期化
+// ══════════════════════════════════════════════
+// 初期化（localStorage復元）
+// ══════════════════════════════════════════════
 renderBiasUI();
 renderBiasTable();
+// ブラウザ更新後にlocalStorageからレースデータを復元
+(function initRestoreRaces(){
+  if(loadRacesFromStorage()&&races.length){
+    // UI上で最後にアクティブだったレースを復元
+    if(!races.find(r=>r.id===activeRaceId)) activeRaceId=races[races.length-1].id;
+    renderRaceTabs();
+    switchRace(activeRaceId);
+    document.getElementById("action-btns").style.display="flex";
+    flashMsg("✓ "+races.length+"レースを復元しました（前回のデータ）");
+  }
+})();
 </script>
 </body>
 </html>
