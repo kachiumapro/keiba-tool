@@ -235,7 +235,7 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 
   <!-- CONFIG -->
   <div class="config-card">
-    <div class="cfg-title">📍 レース設定 <span id="auto-detect-badge" style="display:none" class="detect-badge">🔍 CSV自動検出</span></div>
+    <div class="cfg-title">📍 レース設定 <span style="font-size:9px;font-weight:400;color:#3a6a4a;letter-spacing:0">※ CSV読込前にここで設定してください（ファイル名に競馬場・コース・距離を含む場合は自動入力）</span> <span id="auto-detect-badge" style="display:none" class="detect-badge">🔍 自動検出</span></div>
     <div class="cfg-grid">
       <div><label class="lbl">競馬場</label>
         <select class="ipt" id="sel-course">
@@ -288,7 +288,9 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
         <div class="file-title">① 出馬表CSV</div>
         <div class="file-desc">
           TARGET → 出馬表 → CSV出力<br>
-          <b style="color:var(--gold)">18行形式</b>（馬番・血統・騎手・オッズ含む）
+          <b style="color:var(--gold)">ファイル名推奨:</b> 競馬場＋R番号＋コース＋距離<br>
+          例: <b style="color:var(--green2)">阪神11R芝2000.csv</b><br>
+          <span style="font-size:10px;color:var(--text3)">→ レース条件を自動認識します</span>
         </div>
         <input type="file" accept=".csv" id="file-entry" class="file-input" onchange="onFileChange('entry')">
         <div class="file-status" id="status-entry">未選択</div>
@@ -297,21 +299,14 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
         <div class="file-title">② 全馬CSV</div>
         <div class="file-desc">
           TARGET → 全馬成績 → CSV出力<br>
-          <b style="color:var(--gold)">77行形式</b>（ハロン別ラップ・上り3F含む）
+          <b style="color:var(--gold)">ファイル名例:</b> 阪神11R全馬.csv<br>
+          <span style="font-size:10px;color:var(--text3)">（上り3F・ラップ・脚質データ）</span>
         </div>
         <input type="file" accept=".csv" id="file-zenba" class="file-input" onchange="onFileChange('zenba')">
         <div class="file-status" id="status-zenba">未選択</div>
       </div>
     </div>
-    <!-- レース名入力 -->
-    <div style="margin-top:12px;background:#eef7f0;border:2px solid var(--border);
-      border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <label class="lbl" style="margin-bottom:0;white-space:nowrap">🏆 レース名（任意）</label>
-      <input type="text" id="race-name-input" class="ipt"
-        placeholder="例: アンタレスステークス　※GⅢ・GⅠ等の重賞・特別戦のレース名を入力"
-        style="flex:1;min-width:200px;max-width:500px">
-      <span style="font-size:10px;color:#3a6a4a">空欄の場合は「阪神 11R」形式で保存</span>
-    </div>
+
     <div class="analyze-wrap" style="margin-top:12px">
       <button class="analyze-btn" id="analyze-btn" onclick="handleFiles()">
         🔍 CSV分析開始
@@ -603,7 +598,27 @@ function readFile(file,enc="Shift-JIS"){
   });
 }
 function parseCSV(text){
-  return text.split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split(",").map(c=>c.trim()));
+  // ★ クォート付きCSV（"阪神","ダート","1800"）に完全対応
+  const rows=[];
+  for(const line of text.split(/\r?\n/)){
+    if(!line.trim()) continue;
+    const cells=[];
+    let buf='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){
+        if(inQ&&line[i+1]==='"'){buf+='"';i++;} // エスケープ済みクォート
+        else inQ=!inQ;
+      } else if(ch===','&&!inQ){
+        cells.push(buf.trim());buf='';
+      } else {
+        buf+=ch;
+      }
+    }
+    cells.push(buf.trim());
+    rows.push(cells);
+  }
+  return rows;
 }
 
 // ══════════════════════════════════════════════
@@ -611,14 +626,36 @@ function parseCSV(text){
 // ★ ファイル名からレース情報を抽出 v2.3
 // ══════════════════════════════════════════════
 function parseInfoFromFilename(filename){
-  // ファイル名例: "阪神11R.csv", "東京7R出馬.csv" etc.
-  let course=null, raceNo=null;
-  for(const v of VENUES){
-    if(filename.includes(v)){course=v;break;}
+  // ファイル名例: "阪神11R芝1600.csv", "東京7Rダート1800アンタレスステークス.csv" etc.
+  // 推奨命名: 競馬場+R番号+芝/ダート+距離(+レース名)
+  const base=filename.replace(/\.csv$/i,"").trim();
+  let course=null, raceNo=null, raceName=null, trackType=null, dist=null;
+
+  // 競馬場
+  for(const v of VENUES){ if(base.includes(v)){course=v;break;} }
+
+  // R番号
+  const mR=base.match(/(\d{1,2})R/);
+  if(mR){
+    raceNo=mR[1];
+    // R以降の文字列からレース名取得（ただし芝/ダ/距離は除外）
+    let afterR=base.slice(base.indexOf(mR[0])+mR[0].length)
+      .replace(/芝|ダート|ダ(?=\d)|[0-9]{4}/g,"").trim();
+    afterR=afterR.replace(/^[\s_\-（(）)]+|[\s_\-（(）)]+$/g,"").trim();
+    if(afterR.length>=2) raceName=afterR;
   }
-  const mR=filename.match(/(\d{1,2})R/);
-  if(mR) raceNo=mR[1];
-  return{course,raceNo};
+
+  // 芝/ダート
+  if(base.includes("芝")) trackType="芝";
+  else if(base.includes("ダート")||/ダ\d/.test(base)) trackType="ダ";
+
+  // 距離（4桁の数字）
+  for(const m of base.matchAll(/(\d{4})/g)){
+    const dv=parseInt(m[1]);
+    if(VALID_DISTS.includes(dv)){dist=String(dv);break;}
+  }
+
+  return{course,raceNo,raceName,trackType,dist};
 }
 
 // ★ レース情報自動検出 (出馬表CSVから取得) v2.3
@@ -629,90 +666,78 @@ const VALID_DISTS = [1000,1200,1400,1600,1700,1800,2000,2100,2200,2400,2500,3000
 function parseRaceInfoFromEntry(rows){
   let course=null, dist=null, trackType=null;
 
-  // パス1: ヘッダー行優先 → 全行の順で各セルをスキャン（部分一致対応）
-  const headerRows=rows.filter(c=>{
-    const w=parseInt(c[0]);
-    return isNaN(w)||w<1||w>8;
-  });
-  const allRows=[...headerRows,...rows];
-  for(const row of allRows){
-    for(const cell of row){
-      const s=cell.trim();
-      if(!s) continue;
-      // 競馬場名: 部分一致で検出
-      if(!course){for(const v of VENUES){if(s.includes(v)){course=v;break;}}}
-      // コース種別: "ダート"を優先マッチ（馬名の"ダ"誤検知を防止）
-      if(!trackType){
-        if(s.includes("ダート")||s==="ダ") trackType="ダ";
-        else if(s.includes("芝")&&!s.includes("ダート")) trackType="芝";
+  // ★ 全行をスキャン（ヘッダー/データ行問わず）
+  // データ行（枠番1-8）は後回しにするため、まず非データ行を優先
+  const isDataRow=r=>{const w=parseInt(r[0]);return !isNaN(w)&&w>=1&&w<=8;};
+  const scanRows=[...rows.filter(r=>!isDataRow(r)),...rows.filter(r=>isDataRow(r))];
+
+  for(const row of scanRows){
+    const joined=row.join(" "); // 行全体を結合して検索
+    // 競馬場名
+    if(!course){for(const v of VENUES){if(joined.includes(v)){course=v;break;}}}
+    // コース種別: "ダート"優先（馬名の"ダ"誤検知を防ぐ）
+    if(!trackType){
+      if(joined.includes("ダート")) trackType="ダ";
+      else if(/[,　\s「]芝[,　\s0-9」]|^芝$|[^a-zA-Z0-9]芝[^a-zA-Z0-9]/.test(joined)) trackType="芝";
+    }
+    // 距離: 4桁数値（"1800"/"1800m"/"ダート1800m"/"2024/04/28"の日付は除外）
+    if(!dist){
+      // ★ グローバルマッチで全4桁数値を試す（日付の"2024"等は除外）
+      for(const dm of joined.matchAll(/(\d{4})(?:m|M|ｍ)?/g)){
+        const dv=parseInt(dm[1]);if(VALID_DISTS.includes(dv)){dist=String(dv);break;}
       }
-      // 距離: 3〜4桁数値（単体・"1800m"形式・複合セル内）
-      if(!dist){
-        const dm=s.match(/(?<![0-9])(\d{3,4})(?:m|M)?(?![0-9])/);
-        if(dm){const dv=parseInt(dm[1]);if(VALID_DISTS.includes(dv)) dist=String(dv);}
+    }
+    // セル単位でも確認（"芝"単独セルに対応）
+    if(!trackType){
+      for(const cell of row){
+        const s=cell.trim();
+        if(s==="芝"||s==="芝(右)"||s==="芝(左)") {trackType="芝";break;}
+        if(s==="ダ"||s==="ダート"||s==="ダート(右)"||s==="ダート(左)") {trackType="ダ";break;}
       }
     }
     if(course&&dist&&trackType) break;
   }
 
-  // パス2: 全行をスペース結合してパターンマッチ（"阪神ダート1800"等の連結形式に対応）
-  if(!course||!dist||!trackType){
-    for(const row of rows){
-      const joined=row.join(" ");
-      if(!course){for(const v of VENUES){if(joined.includes(v)){course=v;break;}}}
-      if(!trackType){
-        // "ダート"を優先マッチ（単純な"ダ"より精度が高い）
-        if(joined.includes("ダート")) trackType="ダ";
-        else if(joined.includes("芝")) trackType="芝";
-      }
-      if(!dist){
-        const m=joined.match(/(\d{4})(?:m|M)?(?!\d)/);
-        if(m){const d=parseInt(m[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
-        if(!dist){
-          const m3=joined.match(/[^\d](\d{3})(?:m|M)/i);
-          if(m3){const d=parseInt(m3[1]);if(VALID_DISTS.includes(d)) dist=String(d);}
-        }
-      }
-      if(course&&dist&&trackType) break;
-    }
-  }
-
-  // パス3: 全行を通じた最終マッチ（ファイル全体スキャン）
-  if(!course||!dist||!trackType){
-    const allText=rows.map(r=>r.join(" ")).join("\n");
-    if(!course){for(const v of VENUES){if(allText.includes(v)){course=v;break;}}}
-    if(!trackType){
-      if(allText.includes("ダート")) trackType="ダ";
-      else if(/\s芝[0-9]|\n芝\s|[,　]芝[,　\n]/.test(allText)) trackType="芝";
-    }
-    if(!dist){
-      const allMatches=[...allText.matchAll(/(?<!\d)(\d{4})(?:m|M)?(?!\d)/g)];
-      for(const m of allMatches){
-        const d=parseInt(m[1]);if(VALID_DISTS.includes(d)){dist=String(d);break;}
-      }
+  // 距離が未検出の場合: 全文をスキャン（"1000m"等の3桁も対象）
+  if(!dist){
+    const allText=rows.map(r=>r.join(" ")).join(" ");
+    for(const dm of allText.matchAll(/(\d{3,4})(?:m|M|ｍ)/g)){
+      const dv=parseInt(dm[1]);if(VALID_DISTS.includes(dv)){dist=String(dv);break;}
     }
   }
 
   return{course,dist,trackType};
 }
 
-// 出馬表CSVのヘッダー行からレース名を取得（カタカナ主体の文字列を候補）
+// ★ レース名検出: ヘッダー行のみを対象（データ行の馬名等を誤検知しないため）
+// TARGET出馬表CSVはデータ行のみのため、通常はnullを返す
+// ヘッダー行がある形式（一部のTARGET設定）の場合のみ検出
 function parseRaceNameFromEntry(rows){
-  const headerRows=rows.filter(c=>{
-    const w=parseInt(c[0]);
-    return isNaN(w)||w<1||w>8;
-  });
-  const ignoreWords=new Set(["芝","ダ","ダート","良","稍重","重","不良","牡","牝","騸","競馬","JRA","TARGET"]);
+  // ★ ヘッダー行のみ対象（col0が1-8でない行）
+  const headerRows=rows.filter(r=>{const w=parseInt(r[0]);return isNaN(w)||w<1||w>8;});
+  // ヘッダー行が存在しない場合はnullを返す（ファイル名から取得する）
+  if(!headerRows.length) return null;
+
+  const ignoreWords=new Set([
+    "芝","ダ","ダート","良","稍重","重","不良","牡","牝","騸","競馬","JRA","TARGET",
+    "オープン","リステッド","条件","特別","未勝利","新馬","障害","ハンデ",
+  ]);
   for(const row of headerRows){
     for(const cell of row){
       const s=cell.trim();
-      // カタカナを含む・3文字以上・20文字以下・無視リスト外の文字列をレース名候補とする
-      if(s.length>=3&&s.length<=25&&/[ァ-ヶーｦ-ﾟ]/.test(s)&&!ignoreWords.has(s)
-         &&!/^\d+$/.test(s)&&!VENUES.includes(s)){
-        // GⅠ等のグレード表記を除去
-        const cleaned=s.replace(/[ＧG][ⅠⅡⅢ123１２３]|\(L\)|OP\(L\)|OP|ＯＰ/g,"").trim();
-        if(cleaned.length>=2) return cleaned;
-      }
+      if(!s||s.length<2||s.length>40) continue;
+      if(/^\d+$/.test(s)) continue;
+      if(VENUES.includes(s)) continue;
+      const hasKana=/[ァ-ヶーｦ-ﾟ]/.test(s);
+      const hasKanji=/[一-龯々〆〤]/.test(s);
+      if(!hasKana&&!hasKanji) continue;
+      if(ignoreWords.has(s)) continue;
+      const cleaned=s
+        .replace(/[ＧG][ⅠⅡⅢ123１２３Ⅰ-Ⅲ]+/g,"")
+        .replace(/\(L\)|\(OP\)|OP\(L\)|ＯＰ|OP|\(Listed\)/gi,"")
+        .replace(/（[^）]*）|\([^)]*\)/g,"")
+        .trim();
+      if(cleaned.length>=2&&!ignoreWords.has(cleaned)) return cleaned;
     }
   }
   return null;
@@ -1004,7 +1029,11 @@ function surfCompatScore(info,tt){
 function computeBlood(h,bias,dist,tt){
   const si=lookupSire(h.sire);
   const bmi=lookupSire(h.bmsire);
-  if(!si) return{bloodScore:52,sireFound:false,bmiFound:!!bmi,si:null,bmi,sireDistC:52,surfc:52,sireBC:52};
+  if(!si){
+    // 父馬DB未登録: 脚質×バイアス適合度を参考スコアとして算出（"---"ではなく数値表示）
+    const styleScore=(STYLE_BIAS[h.style||"不明"]||STYLE_BIAS["不明"])[bias]||52;
+    return{bloodScore:styleScore,sireFound:false,bmiFound:!!bmi,si:null,bmi,sireDistC:0,surfc:0,sireBC:0};
+  }
   const sbc=si.bias[bias]||62;
   const sdc=distCompatScore(si,dist);
   const ssc=surfCompatScore(si,tt);
@@ -1268,7 +1297,7 @@ function renderBlood(){
   let html=renderRaceInfoBanner()+rrHtml+`<div class="sort-bar"><div class="sort-label">並べ替え</div><div class="sort-btns">
     ${[["total","🏆 総合"],["bsmatch","🏟 バイアス合致"],["distc","📏 距離適性"],["surfc","🌿 芝ダ適性"]].map(([k,l])=>
       `<button class="sort-btn ${state.sortBlood===k?"on":"off"}" onclick="setSortBlood('${k}')">${l}</button>`).join("")}
-  </div><div class="sort-note">父馬DBなし＝参考値（グレー表示）。条件: ${state.course} ${state.trackType} ${state.distance}m / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
+  </div><div class="sort-note">*印＝父馬DB未登録（脚質×バイアスの参考スコア、グレー表示）。条件: ${state.course} ${state.trackType} ${state.distance}m / バイアス: <b style="color:var(--green2)">${bias}</b></div></div>`;
 
   html+=`<div class="horse-list">`;
   ranked.forEach((h,i)=>{
@@ -1287,9 +1316,9 @@ function renderBlood(){
           <div class="h-trainer">${h.trainer||""}</div>
           ${h.popularity?`<div style="font-size:11px;font-weight:700;color:${h.popularity<=3?"var(--red2)":h.popularity<=5?"var(--gold)":"var(--text3)"}">${h.popularity}人気 ${h.odds?h.odds+"倍":""}</div>`:(h.odds?`<div style="font-size:11px;color:var(--gold)">${h.odds}倍</div>`:"")}
         </div>
-        <div class="h-score" style="color:${bc}">${h.sireFound?h.total:"---"}</div>
+        <div class="h-score" style="color:${bc}">${h.total}${h.sireFound?"":"*"}</div>
       </div>
-      ${h.sireFound?`<div class="s-bar"><div class="s-bar-inner" style="width:${pct}%;background:${rk.color}"></div></div>`:""}
+      <div class="s-bar"><div class="s-bar-inner" style="width:${pct}%;background:${h.sireFound?rk.color:"var(--text3)"}"></div></div>
       <div class="blood-box">
         <div class="blood-sire">🐴 父: ${h.sire||"不明"} ${!h.sireFound?"<span style='font-size:10px;color:var(--text3)'>(DBなし)</span>":""}</div>
         <div class="blood-dam">🐎 母: ${h.dam||"不明"}</div>
@@ -1466,8 +1495,36 @@ function onFileChange(type){
   if(!file){st.textContent="未選択";st.className="file-status";return;}
   st.textContent=`✓ ${file.name}`;
   st.className="file-status ok";
-  if(type==="entry") rawEntry=file;
-  else rawZenba=file;
+  if(type==="entry"){
+    rawEntry=file;
+    // ★ ファイル名から上部レース設定ドロップダウンを自動更新
+    const fi=parseInfoFromFilename(file.name||"");
+    if(fi.course){
+      const el=document.getElementById("sel-course");
+      if(el) el.value=fi.course;
+      state.course=fi.course;
+    }
+    if(fi.trackType){
+      const el=document.getElementById("sel-type");
+      if(el) el.value=fi.trackType;
+      state.trackType=fi.trackType;
+    }
+    if(fi.dist){
+      const el=document.getElementById("sel-dist");
+      if(el){
+        if(![...el.options].some(o=>o.value===fi.dist)){
+          const opt=document.createElement("option");
+          opt.value=fi.dist;opt.textContent=fi.dist;
+          el.appendChild(opt);
+        }
+        el.value=fi.dist;
+      }
+      state.distance=fi.dist;
+    }
+    renderBiasUI();
+  } else {
+    rawZenba=file;
+  }
 }
 
 async function handleFiles(){
@@ -1483,16 +1540,18 @@ async function handleFiles(){
     const rows1=parseCSV(t1);
     const rows2=parseCSV(t2);
 
-    // ★ ファイル名 → CSV の順でレース情報を自動検出
+    // ★ 優先順位: 上部設定（手動or自動入力済） > ファイル名 > CSV内容
     const fnInfo=parseInfoFromFilename(rawEntry.name||"");
     const csvInfo=parseRaceInfoFromEntry(rows1);
-    // ★ レース名自動検出（CSV内のカタカナ文字列から）
-    const autoRaceName=parseRaceNameFromEntry(rows1);
-    // ファイル名の競馬場を優先、CSVで補完
+    const autoRaceName=parseRaceNameFromEntry(rows1)||fnInfo.raceName||"";
+    // 上部ドロップダウンの現在値（onFileChangeで既に自動入力済みの可能性あり）
+    const selCourse=(document.getElementById("sel-course")?.value||"").trim();
+    const selType  =(document.getElementById("sel-type")?.value||"").trim();
+    const selDist  =(document.getElementById("sel-dist")?.value||"").trim();
     const raceInfo={
-      course: fnInfo.course||csvInfo.course,
-      trackType: csvInfo.trackType,
-      dist: csvInfo.dist,
+      course:    selCourse || fnInfo.course    || csvInfo.course,
+      trackType: selType   || fnInfo.trackType || csvInfo.trackType,
+      dist:      selDist   || fnInfo.dist      || csvInfo.dist,
     };
     const raceNo=fnInfo.raceNo;
     let autoDetected=false;
@@ -1531,6 +1590,14 @@ async function handleFiles(){
       }
       distSel.value=raceInfo.dist;
       detectedItems.push(raceInfo.dist+"m");autoDetected=true;
+    }
+
+    // コース・距離が未検出の場合: フラッシュで案内（診断パネルは表示しない）
+    if(!raceInfo.trackType||!raceInfo.dist){
+      const missing=[];
+      if(!raceInfo.trackType) missing.push("芝/ダート");
+      if(!raceInfo.dist) missing.push("距離");
+      // ★ 読込完了後のflashMsgと合わせてメッセージを出すため、ここではstateに記録のみ
     }
 
     // 自動検出バッジを表示
@@ -1575,36 +1642,36 @@ async function handleFiles(){
     const matched=newHorses.filter(h=>h.runs.length>0).length;
     const totalRuns=newHorses.reduce((s,h)=>s+h.runs.length,0);
 
-    // ★ レースラベル生成 v2.5
-    // 優先順位: ①手動入力レース名 → ②CSV自動検出レース名 → ③場所+R番号 → ④場所+距離
-    const courseLabel=state.course||"";
-    const ttLabel=state.trackType||"";
-    const distLabel=state.distance||"";
-    const manualRaceName=(document.getElementById("race-name-input")||{}).value?.trim()||"";
-    // 手動入力がなければCSV自動検出レース名を使用
-    const effectiveRaceName=manualRaceName||autoRaceName||"";
+    // ★ レースラベル生成 v2.6
+    // ★ 検出値を優先（state.courseはデフォルト"阪神"を持つので直接使わない）
+    const detCourse = raceInfo.course||fnInfo.course||""; // 検出された競馬場のみ
+    const detTT = raceInfo.trackType||"";
+    const detDist = raceInfo.dist||"";
+    const effectiveRaceName=autoRaceName||"";
     let label;
 
-    if(effectiveRaceName&&courseLabel&&raceNo){
+    if(effectiveRaceName&&detCourse&&raceNo){
       // 例: "阪神 11R アンタレスステークス"
-      label=`${courseLabel} ${raceNo}R ${effectiveRaceName}`;
-    } else if(effectiveRaceName&&courseLabel){
-      label=`${courseLabel} ${effectiveRaceName}`;
+      label=`${detCourse} ${raceNo}R ${effectiveRaceName}`;
+    } else if(effectiveRaceName&&detCourse){
+      label=`${detCourse} ${effectiveRaceName}`;
+    } else if(effectiveRaceName&&raceNo){
+      label=`${raceNo}R ${effectiveRaceName}`;
     } else if(effectiveRaceName){
       label=effectiveRaceName;
-    } else if(courseLabel&&raceNo){
-      label=`${courseLabel} ${raceNo}R`;
-    } else if(courseLabel){
-      label=distLabel?`${courseLabel} ${ttLabel}${distLabel}m`:courseLabel;
+    } else if(detCourse&&raceNo){
+      label=`${detCourse} ${raceNo}R`;
+    } else if(detCourse&&detDist){
+      label=`${detCourse} ${detTT||""}${detDist}m`;
+    } else if(raceNo){
+      label=`${raceNo}R`;
     } else {
+      // ファイル名をフォールバックに使用
       const fnBaseName=(rawEntry.name||"").replace(/\.csv$/i,"").trim();
       label=fnBaseName||`レース${raceCounter+1}`;
     }
     // 空ラベル保護
     if(!label||!label.trim()) label=`レース${raceCounter+1}`;
-    // 読み込み後にレース名入力欄をクリア
-    setTimeout(()=>{const el=document.getElementById("race-name-input");if(el)el.value="";},500);
-
     // レースを追加（現在のstateのコピーを保存）
     raceCounter++;
     const newRace={
@@ -1623,7 +1690,20 @@ async function handleFiles(){
     renderAll();
     switchTab("agari");
 
-    const detectMsg=autoDetected?` ／ ${state.course} ${state.trackType}${state.distance}m 自動検出`:"";
+    // 読込完了メッセージ
+    let detectMsg="";
+    if(detCourse||fnInfo.raceNo){
+      detectMsg=` ／ ${detCourse}${fnInfo.raceNo?" "+fnInfo.raceNo+"R":""}`;
+      if(autoRaceName) detectMsg+=` ${autoRaceName}`;
+    }
+    if(raceInfo.trackType&&raceInfo.dist){
+      detectMsg+=` ${state.trackType==="ダ"?"ダート":"芝"}${state.distance}m`;
+    } else {
+      const missing=[];
+      if(!raceInfo.trackType) missing.push("芝/ダート");
+      if(!raceInfo.dist) missing.push("距離");
+      if(missing.length) detectMsg+=` ／ ※${missing.join("・")}を上のメニューで設定してください`;
+    }
     flashMsg(`✓ ${newHorses.length}頭読込完了（${matched}頭マッチ・${totalRuns}走分析）${detectMsg}`);
 
     // ファイル入力をリセット
@@ -1815,10 +1895,32 @@ renderBiasTable();
   if(loadRacesFromStorage()&&races.length){
     // UI上で最後にアクティブだったレースを復元
     if(!races.find(r=>r.id===activeRaceId)) activeRaceId=races[races.length-1].id;
+    // SELECTを復元
+    const ar=races.find(r=>r.id===activeRaceId);
+    if(ar){
+      state.course=ar.state.course;state.trackType=ar.state.trackType;
+      state.distance=ar.state.distance;state.cond=ar.state.cond;
+      state.kaisaiDay=ar.state.kaisaiDay;state.manualBias=ar.state.manualBias||"";
+      const sc=document.getElementById("sel-course");
+      if(sc&&![...sc.options].some(o=>o.value===state.course)){
+        const op=document.createElement("option");op.value=state.course;op.textContent=state.course;sc.appendChild(op);
+      }
+      if(sc) sc.value=state.course;
+      const st=document.getElementById("sel-type");if(st) st.value=state.trackType;
+      const sd=document.getElementById("sel-dist");
+      if(sd&&![...sd.options].some(o=>o.value===state.distance)){
+        const op=document.createElement("option");op.value=state.distance;op.textContent=state.distance;sd.appendChild(op);
+      }
+      if(sd) sd.value=state.distance;
+      const scd=document.getElementById("sel-cond");if(scd) scd.value=state.cond;
+      const sdy=document.getElementById("sel-day");if(sdy) sdy.value=state.kaisaiDay;
+    }
     renderRaceTabs();
-    switchRace(activeRaceId);
+    renderBiasUI();
+    renderAll();
+    switchTab("agari");
     document.getElementById("action-btns").style.display="flex";
-    flashMsg("✓ "+races.length+"レースを復元しました（前回のデータ）");
+    flashMsg("✓ "+races.length+"レース復元（ページ更新前のデータ）");
   }
 })();
 </script>
