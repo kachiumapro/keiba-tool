@@ -213,11 +213,12 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
 .ov-x{overflow-x:auto;}
 
 /* RACE TABS */
-.race-tab-btn{padding:6px 14px;border-radius:6px;border:2px solid;cursor:pointer;
-  font-family:inherit;font-size:12px;font-weight:700;transition:all .15s;}
+.race-tab-btn{padding:4px 10px;border-radius:6px;border:2px solid;cursor:pointer;
+  font-family:inherit;font-size:11px;font-weight:700;transition:all .15s;white-space:nowrap;}
 .race-tab-on{background:#1a7a3a;border-color:#3ddb6a;color:#fff;}
 .race-tab-off{background:#eef7f0;border-color:#8ac4a0;color:#2a5a3a;}
 .race-tab-off:hover{border-color:#1a7a3a;color:#1a7a3a;}
+#race-tab-wrap{max-height:160px;overflow-y:auto;}
 
 @media print{button,select,input,textarea{display:none!important;}}
 </style>
@@ -484,33 +485,83 @@ const state = {
 let rawEntry = null, rawZenba = null;
 
 // ══════════════════════════════════════════════
-// localStorage 永続化（ブラウザ更新後もレースデータを保持）
 // ══════════════════════════════════════════════
-function saveRacesToStorage(){
-  try{
-    // horsesの中のFileオブジェクト等は含まれないので安全にシリアライズ可能
-    const data={races,activeRaceId,raceCounter};
-    localStorage.setItem("keiba3axis_v24_races",JSON.stringify(data));
-  }catch(e){
-    console.warn("[keiba3axis] localStorage保存失敗:",e.message);
-  }
+// IndexedDB 永続化（最大36レース対応・容量制限なし）
+// ══════════════════════════════════════════════
+const MAX_RACES = 36;
+const _IDB_NAME  = "keiba3axis_v24";
+const _IDB_VER   = 1;
+const _IDB_STORE = "races";
+let _idb = null;
+
+function _openIDB(){
+  return new Promise((resolve,reject)=>{
+    if(_idb){resolve(_idb);return;}
+    const req=indexedDB.open(_IDB_NAME,_IDB_VER);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(_IDB_STORE))
+        d.createObjectStore(_IDB_STORE,{keyPath:"key"});
+    };
+    req.onsuccess=e=>{_idb=e.target.result;resolve(_idb);};
+    req.onerror=e=>reject(e.target.error);
+  });
 }
+
+function saveRacesToStorage(){
+  _openIDB().then(d=>{
+    const tx=d.transaction(_IDB_STORE,"readwrite");
+    tx.objectStore(_IDB_STORE).put({key:"main",races,activeRaceId,raceCounter});
+    tx.onerror=e=>console.warn("[keiba3axis] IndexedDB保存失敗:",e.target.error);
+  }).catch(e=>{
+    // フォールバック: localStorage（容量オーバー時は古いレースを削減）
+    try{
+      const data={races,activeRaceId,raceCounter};
+      localStorage.setItem("keiba3axis_v24_races",JSON.stringify(data));
+    }catch(e2){console.warn("[keiba3axis] localStorage保存も失敗:",e2.message);}
+  });
+}
+
 function loadRacesFromStorage(){
+  return _openIDB().then(d=>{
+    return new Promise(resolve=>{
+      const tx=d.transaction(_IDB_STORE,"readonly");
+      const req=tx.objectStore(_IDB_STORE).get("main");
+      req.onsuccess=e=>{
+        const data=e.target.result;
+        if(data&&Array.isArray(data.races)&&data.races.length){
+          races=data.races;
+          activeRaceId=data.activeRaceId;
+          raceCounter=data.raceCounter||data.races.length;
+          resolve(true);
+        } else {
+          // localStorageフォールバック
+          _loadFromLocalStorage(resolve);
+        }
+      };
+      req.onerror=()=>_loadFromLocalStorage(resolve);
+    });
+  }).catch(()=>new Promise(resolve=>_loadFromLocalStorage(resolve)));
+}
+
+function _loadFromLocalStorage(resolve){
   try{
     const raw=localStorage.getItem("keiba3axis_v24_races");
-    if(!raw) return false;
+    if(!raw){resolve(false);return;}
     const data=JSON.parse(raw);
-    if(!data||!Array.isArray(data.races)||!data.races.length) return false;
+    if(!data||!Array.isArray(data.races)||!data.races.length){resolve(false);return;}
     races=data.races;
     activeRaceId=data.activeRaceId;
     raceCounter=data.raceCounter||races.length;
-    return true;
-  }catch(e){
-    console.warn("[keiba3axis] localStorage復元失敗:",e.message);
-    return false;
-  }
+    resolve(true);
+  }catch(e){resolve(false);}
 }
+
 function clearRacesStorage(){
+  _openIDB().then(d=>{
+    const tx=d.transaction(_IDB_STORE,"readwrite");
+    tx.objectStore(_IDB_STORE).delete("main");
+  }).catch(()=>{});
   try{localStorage.removeItem("keiba3axis_v24_races");}catch(e){}
 }
 
@@ -1442,8 +1493,10 @@ function renderRaceTabs(){
         cursor:pointer;font-weight:400" title="削除">✕</span>
     </button>`;
   }).join("");
-  wrap.innerHTML=`<span style="font-size:10px;color:#3a6a4a;letter-spacing:2px;font-weight:700;
-    align-self:center;margin-right:6px;white-space:nowrap;">📋 読込済みレース</span>`+tabsHtml;
+  const countColor=races.length>=MAX_RACES?"#cc2222":races.length>=30?"#c07010":"#3a6a4a";
+  wrap.innerHTML=`<span style="font-size:10px;color:${countColor};letter-spacing:2px;font-weight:700;
+    align-self:flex-start;margin-right:6px;white-space:nowrap;padding-top:2px;">📋 読込済みレース<br>
+    <span style="font-size:11px;letter-spacing:0">${races.length}/${MAX_RACES}</span></span>`+tabsHtml;
 }
 
 function switchRace(id){
@@ -1672,6 +1725,11 @@ async function handleFiles(){
     }
     // 空ラベル保護
     if(!label||!label.trim()) label=`レース${raceCounter+1}`;
+    // 36レース上限チェック
+    if(races.length>=MAX_RACES){
+      flashMsg(`⚠ 保存上限（${MAX_RACES}レース）に達しました。不要なレースを削除してから追加してください。`,true);
+      return;
+    }
     // レースを追加（現在のstateのコピーを保存）
     raceCounter++;
     const newRace={
@@ -1682,7 +1740,7 @@ async function handleFiles(){
     };
     races.push(newRace);
     activeRaceId=newRace.id;
-    saveRacesToStorage(); // ★ localStorage保存
+    saveRacesToStorage(); // ★ IndexedDB保存
 
     document.getElementById("action-btns").style.display="flex";
     renderRaceTabs();
@@ -1886,42 +1944,44 @@ function switchTab(tab){
 });
 
 // ══════════════════════════════════════════════
-// 初期化（localStorage復元）
+// 初期化（IndexedDB復元）
 // ══════════════════════════════════════════════
 renderBiasUI();
 renderBiasTable();
-// ブラウザ更新後にlocalStorageからレースデータを復元
+// ブラウザ更新後にIndexedDBからレースデータを復元
 (function initRestoreRaces(){
-  if(loadRacesFromStorage()&&races.length){
-    // UI上で最後にアクティブだったレースを復元
-    if(!races.find(r=>r.id===activeRaceId)) activeRaceId=races[races.length-1].id;
-    // SELECTを復元
-    const ar=races.find(r=>r.id===activeRaceId);
-    if(ar){
-      state.course=ar.state.course;state.trackType=ar.state.trackType;
-      state.distance=ar.state.distance;state.cond=ar.state.cond;
-      state.kaisaiDay=ar.state.kaisaiDay;state.manualBias=ar.state.manualBias||"";
-      const sc=document.getElementById("sel-course");
-      if(sc&&![...sc.options].some(o=>o.value===state.course)){
-        const op=document.createElement("option");op.value=state.course;op.textContent=state.course;sc.appendChild(op);
+  loadRacesFromStorage().then(function(loaded){
+    if(loaded&&races.length){
+      // UI上で最後にアクティブだったレースを復元
+      if(!races.find(r=>r.id===activeRaceId)) activeRaceId=races[races.length-1].id;
+      // SELECTを復元
+      const ar=races.find(r=>r.id===activeRaceId);
+      if(ar){
+        state.course=ar.state.course;state.trackType=ar.state.trackType;
+        state.distance=ar.state.distance;state.cond=ar.state.cond;
+        state.kaisaiDay=ar.state.kaisaiDay;state.manualBias=ar.state.manualBias||"";
+        const sc=document.getElementById("sel-course");
+        if(sc&&![...sc.options].some(o=>o.value===state.course)){
+          const op=document.createElement("option");op.value=state.course;op.textContent=state.course;sc.appendChild(op);
+        }
+        if(sc) sc.value=state.course;
+        const st=document.getElementById("sel-type");if(st) st.value=state.trackType;
+        const sd=document.getElementById("sel-dist");
+        if(sd&&![...sd.options].some(o=>o.value===state.distance)){
+          const op=document.createElement("option");op.value=state.distance;op.textContent=state.distance;sd.appendChild(op);
+        }
+        if(sd) sd.value=state.distance;
+        const scd=document.getElementById("sel-cond");if(scd) scd.value=state.cond;
+        const sdy=document.getElementById("sel-day");if(sdy) sdy.value=state.kaisaiDay;
       }
-      if(sc) sc.value=state.course;
-      const st=document.getElementById("sel-type");if(st) st.value=state.trackType;
-      const sd=document.getElementById("sel-dist");
-      if(sd&&![...sd.options].some(o=>o.value===state.distance)){
-        const op=document.createElement("option");op.value=state.distance;op.textContent=state.distance;sd.appendChild(op);
-      }
-      if(sd) sd.value=state.distance;
-      const scd=document.getElementById("sel-cond");if(scd) scd.value=state.cond;
-      const sdy=document.getElementById("sel-day");if(sdy) sdy.value=state.kaisaiDay;
+      renderRaceTabs();
+      renderBiasUI();
+      renderAll();
+      switchTab("agari");
+      document.getElementById("action-btns").style.display="flex";
+      flashMsg("✓ "+races.length+"レース復元（IndexedDB）");
     }
-    renderRaceTabs();
-    renderBiasUI();
-    renderAll();
-    switchTab("agari");
-    document.getElementById("action-btns").style.display="flex";
-    flashMsg("✓ "+races.length+"レース復元（ページ更新前のデータ）");
-  }
+  });
 })();
 </script>
 </body>
