@@ -357,8 +357,21 @@ label.lbl{display:block;font-size:10px;color:#0d5a20;letter-spacing:2px;margin-b
   <div id="tab-result" class="tab-panel">
     <div class="sec-sub">RACE RESULT &amp; PAYOUTS</div>
     <div class="sec-title">🏆 レース結果・配当</div>
-    <div class="sec-desc">レース終了後に着順と配当を入力してください</div>
+    <div class="sec-desc">レース終了後に着順と配当を入力するか、結果ファイルを読み込んでください</div>
     <div id="result-content">
+      <!-- 結果ファイル読み込み -->
+      <div style="background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+        <div style="font-size:11px;letter-spacing:3px;color:#0d5a20;margin-bottom:10px;font-weight:900;">📂 結果ファイル読み込み</div>
+        <div style="font-size:10px;color:#3a6a4a;margin-bottom:10px;line-height:1.8;">
+          回収率管理フォルダの結果TXTファイルを選択すると着順・配当が自動入力されます<br>
+          <span style="color:var(--gold);font-weight:700;">例: 東京_結果_20250504.txt</span>（Shift-JIS / UTF-8 対応）
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" accept=".txt" id="file-result" class="file-input" style="flex:1;min-width:200px;" onchange="loadResultFile(this)">
+          <div class="file-status" id="status-result" style="font-size:10px;">未選択</div>
+        </div>
+        <div id="result-file-msg" style="font-size:11px;margin-top:8px;font-weight:700;color:#1a7a3a;display:none;"></div>
+      </div>
       <!-- 着順入力 -->
       <div style="background:#fffdf5;border:2px solid #1a7a3a;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
         <div style="font-size:11px;letter-spacing:3px;color:#0d5a20;margin-bottom:12px;font-weight:900;">🥇 着順入力</div>
@@ -706,7 +719,14 @@ function parseInfoFromFilename(filename){
     if(VALID_DISTS.includes(dv)){dist=String(dv);break;}
   }
 
-  return{course,raceNo,raceName,trackType,dist};
+  // 馬場状態（稍重を"重"より先にチェック）
+  let cond=null;
+  if(base.includes("稍重")) cond="稍重";
+  else if(base.includes("不良")) cond="不良";
+  else if(base.includes("重")) cond="重";
+  else if(base.includes("良")) cond="良";
+
+  return{course,raceNo,raceName,trackType,dist,cond};
 }
 
 // ★ レース情報自動検出 (出馬表CSVから取得) v2.3
@@ -757,7 +777,17 @@ function parseRaceInfoFromEntry(rows){
     }
   }
 
-  return{course,dist,trackType};
+  // 馬場状態: CSV内のセル値を検出
+  let cond=null;
+  const condWords=["稍重","不良","重","良"];
+  outer:for(const row of rows){
+    for(const cell of row){
+      const s=cell.trim();
+      for(const w of condWords){if(s===w){cond=w;break outer;}}
+    }
+  }
+
+  return{course,dist,trackType,cond};
 }
 
 // ★ レース名検出: ヘッダー行のみを対象（データ行の馬名等を誤検知しないため）
@@ -1574,6 +1604,11 @@ function onFileChange(type){
       }
       state.distance=fi.dist;
     }
+    if(fi.cond){
+      const el=document.getElementById("sel-cond");
+      if(el) el.value=fi.cond;
+      state.cond=fi.cond;
+    }
     renderBiasUI();
   } else {
     rawZenba=file;
@@ -1601,10 +1636,12 @@ async function handleFiles(){
     const selCourse=(document.getElementById("sel-course")?.value||"").trim();
     const selType  =(document.getElementById("sel-type")?.value||"").trim();
     const selDist  =(document.getElementById("sel-dist")?.value||"").trim();
+    const selCond  =(document.getElementById("sel-cond")?.value||"").trim();
     const raceInfo={
       course:    selCourse || fnInfo.course    || csvInfo.course,
       trackType: selType   || fnInfo.trackType || csvInfo.trackType,
       dist:      selDist   || fnInfo.dist      || csvInfo.dist,
+      cond:      fnInfo.cond || csvInfo.cond   || selCond || null,
     };
     const raceNo=fnInfo.raceNo;
     let autoDetected=false;
@@ -1643,6 +1680,12 @@ async function handleFiles(){
       }
       distSel.value=raceInfo.dist;
       detectedItems.push(raceInfo.dist+"m");autoDetected=true;
+    }
+    if(raceInfo.cond){
+      state.cond=raceInfo.cond;
+      const elCond=document.getElementById("sel-cond");
+      if(elCond) elCond.value=raceInfo.cond;
+      detectedItems.push(raceInfo.cond);autoDetected=true;
     }
 
     // コース・距離が未検出の場合: フラッシュで案内（診断パネルは表示しない）
@@ -1807,6 +1850,157 @@ function exportCSV(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);
   a.download=`keiba_triple_${state.course}${state.distance}m.csv`;a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// ══════════════════════════════════════════════
+// 結果ファイル読み込み
+// ══════════════════════════════════════════════
+function loadResultFile(input){
+  const file=input.files[0];
+  const st=document.getElementById("status-result");
+  const msg=document.getElementById("result-file-msg");
+  if(!file){st.textContent="未選択";return;}
+  st.textContent="読み込み中...";
+
+  const reader=new FileReader();
+  reader.onload=function(e){
+    let text=null;
+    // Shift-JIS → TextDecoder で再試行
+    try{
+      const dec=new TextDecoder("shift-jis",{fatal:true});
+      text=dec.decode(e.target.result);
+    }catch(_){
+      try{
+        const dec=new TextDecoder("utf-8",{fatal:true});
+        text=dec.decode(e.target.result);
+      }catch(_){
+        text=new TextDecoder("shift-jis",{fatal:false}).decode(e.target.result);
+      }
+    }
+    const result=parseResultTxt(text);
+    if(!result){
+      st.textContent="⚠ 解析失敗";st.className="file-status err";
+      msg.textContent="レース結果が見つかりませんでした。ファイル形式を確認してください。";
+      msg.style.color="var(--red)";msg.style.display="block";
+      return;
+    }
+    fillResultFromFile(result);
+    st.textContent="✓ "+file.name;st.className="file-status ok";
+    const raceKey=result.venue+"_"+result.raceNo;
+    msg.textContent="✅ 「"+raceKey+"」の結果を読み込みました";
+    msg.style.color="#1a7a3a";msg.style.display="block";
+    setTimeout(()=>{msg.style.display="none";},5000);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseResultTxt(text){
+  // 現在のレース設定から venue と raceNo を取得して一致するブロックを探す
+  const currentVenue=state.course||"";
+  const currentRaceNo=state.raceNo||null;
+
+  const lines=text.split(/\r?\n/);
+  let targetBlock=null;
+
+  // レースブロックをすべて収集
+  const blocks=[];
+  let cur=null;
+  for(const line of lines){
+    const hdr=line.match(/^([^\s　]{2,4})[\s　]+(\d{1,2})R[\s　]/);
+    if(hdr&&!line.includes("場所")&&!line.includes("Ｒ")){
+      if(cur) blocks.push(cur);
+      cur={venue:hdr[1].trim(), raceNo:parseInt(hdr[2]), lines:[]};
+    } else if(cur){
+      cur.lines.push(line);
+    }
+  }
+  if(cur) blocks.push(cur);
+
+  if(!blocks.length) return null;
+
+  // 現在のレース設定と一致するブロックを探す、なければ最初のブロック
+  if(currentVenue&&currentRaceNo){
+    targetBlock=blocks.find(b=>b.venue===currentVenue&&b.raceNo===parseInt(currentRaceNo));
+  }
+  if(!targetBlock&&currentVenue){
+    targetBlock=blocks.find(b=>b.venue===currentVenue);
+  }
+  if(!targetBlock) targetBlock=blocks[0];
+
+  // 着順・配当を解析
+  const data={venue:targetBlock.venue,raceNo:targetBlock.raceNo};
+  const allLines=[lines[lines.indexOf(lines.find(l=>{
+    const h=l.match(/^([^\s　]{2,4})[\s　]+(\d{1,2})R[\s　]/);
+    return h&&h[1].trim()===targetBlock.venue&&parseInt(h[2])===targetBlock.raceNo;
+  }))], ...targetBlock.lines];
+  const blockText=targetBlock.lines.join("\n");
+
+  function parsePayout(s){return s.replace(/[,，]/g,"");}
+
+  // 着順（1着〜3着馬番）
+  const rank1m=blockText.match(/1着[^\d]*(\d{1,2})/);
+  const rank2m=blockText.match(/2着[^\d]*(\d{1,2})/);
+  const rank3m=blockText.match(/3着[^\d]*(\d{1,2})/);
+  if(rank1m) data.rank1=rank1m[1];
+  if(rank2m) data.rank2=rank2m[1];
+  if(rank3m) data.rank3=rank3m[1];
+
+  // 単勝
+  const tanm=blockText.match(/単勝[\s　]*\((\d+)\)[\s　]*([\d,，]+)円/);
+  if(tanm) data.tansho=parsePayout(tanm[2]);
+
+  // 複勝（複数）
+  const fuku=[...blockText.matchAll(/複勝[\s　]*\((\d+)\)[\s　]*([\d,，]+)円/g)];
+  if(fuku[0]) data.fukusho1=parsePayout(fuku[0][2]);
+  if(fuku[1]) data.fukusho2=parsePayout(fuku[1][2]);
+  if(fuku[2]) data.fukusho3=parsePayout(fuku[2][2]);
+
+  // 枠連
+  const wakm=blockText.match(/枠連[\s　]*\((\d+)-(\d+)\)[\s　]*([\d,，]+)円/);
+  if(wakm) data.wakuren=parsePayout(wakm[3]);
+
+  // 馬連
+  const umarm=blockText.match(/馬連[\s　]*\((\d+)-(\d+)\)[\s　]*([\d,，]+)円/);
+  if(umarm) data.umaren=parsePayout(umarm[3]);
+
+  // 馬単
+  const umatm=blockText.match(/馬単[\s　]*\((\d+)-(\d+)\)[\s　]*([\d,，]+)円/);
+  if(umatm) data.umatan=parsePayout(umatm[3]);
+
+  // 三連複
+  const sanfm=blockText.match(/[３3]連複[\s　]*\((\d+)-(\d+)-(\d+)\)[\s　]*([\d,，]+)円/);
+  if(sanfm) data.sanrenpuku=parsePayout(sanfm[4]);
+
+  // 三連単
+  const santm=blockText.match(/[３3]連単[\s　]*\((\d+)-(\d+)-(\d+)\)[\s　]*([\d,，]+)円/);
+  if(santm) data.sanrentan=parsePayout(santm[4]);
+
+  // ワイド（複数）
+  const wide=[...blockText.matchAll(/ワイド[\s　]*\((\d+)-(\d+)\)[\s　]*([\d,，]+)円/g)];
+  if(wide[0]) data.wide12=parsePayout(wide[0][3]);
+  if(wide[1]) data.wide13=parsePayout(wide[1][3]);
+  if(wide[2]) data.wide23=parsePayout(wide[2][3]);
+
+  return data;
+}
+
+function fillResultFromFile(d){
+  const set=(id,val)=>{if(val){const el=document.getElementById(id);if(el) el.value=val;}};
+  set("res-1st",  d.rank1);
+  set("res-2nd",  d.rank2);
+  set("res-3rd",  d.rank3);
+  set("pay-tansho",    d.tansho);
+  set("pay-fukusho1",  d.fukusho1);
+  set("pay-fukusho2",  d.fukusho2);
+  set("pay-fukusho3",  d.fukusho3);
+  set("pay-wakuren",   d.wakuren);
+  set("pay-umaren",    d.umaren);
+  set("pay-umatan",    d.umatan);
+  set("pay-wide12",    d.wide12);
+  set("pay-wide13",    d.wide13);
+  set("pay-wide23",    d.wide23);
+  set("pay-sanrenpuku",d.sanrenpuku);
+  set("pay-sanrentan", d.sanrentan);
 }
 
 // ══════════════════════════════════════════════
