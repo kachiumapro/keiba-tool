@@ -1609,6 +1609,9 @@ function onFileChange(type){
       if(el) el.value=fi.cond;
       state.cond=fi.cond;
     }
+    if(fi.raceNo){
+      state.raceNo=fi.raceNo;
+    }
     renderBiasUI();
   } else {
     rawZenba=file;
@@ -1644,6 +1647,7 @@ async function handleFiles(){
       cond:      fnInfo.cond || csvInfo.cond   || selCond || null,
     };
     const raceNo=fnInfo.raceNo;
+    if(raceNo) state.raceNo=raceNo;
     let autoDetected=false;
     const detectedItems=[];
 
@@ -1887,7 +1891,9 @@ function loadResultFile(input){
     fillResultFromFile(result);
     st.textContent="✓ "+file.name;st.className="file-status ok";
     const raceKey=result.venue+"_"+result.raceNo;
-    msg.textContent="✅ 「"+raceKey+"」の結果を読み込みました";
+    const dbgVenue=state.course||"(未設定)";
+    const dbgRaceNo=state.raceNo||"(未設定)";
+    msg.textContent="✅ 「"+raceKey+"」の結果を読み込みました（検索: "+dbgVenue+" "+dbgRaceNo+"R）";
     msg.style.color="#1a7a3a";msg.style.display="block";
     setTimeout(()=>{msg.style.display="none";},5000);
   };
