@@ -98,9 +98,9 @@ body{font-family:"Meiryo","Yu Gothic",sans-serif;background:#f5f0e8;color:#2c2c2
   <button class="fb" onclick="setFilter(3,this)">🔥 最強勝負（3者）</button>
   <button class="fb" onclick="setFilter(2,this)">⭐ 有力（2者）</button>
   <button class="fb" onclick="setFilter(1,this)">👀 注目（1者）</button>
-  <button class="fb" onclick="setFilter('sei',this)">正一致のみ</button>
   <button class="fb" onclick="setFilter('jockey',this)">🏇 騎手のみ</button>
   <button class="fb" onclick="setFilter('trainer',this)">👔 調教師のみ</button>
+  <button class="fb" onclick="setFilter('owner',this)">🎽 馬主のみ</button>
   <span id="summary-text"></span>
 </div>
 <div id="name-filter-bar">
@@ -351,7 +351,6 @@ function setFilter(val,btn){
   btn.classList.add('active');
   let f;
   if(val==='all') f=allMatches;
-  else if(val==='sei') f=allMatches.filter(m=>m.hasSei);
   else if(val==='jockey') f=allMatches.filter(m=>m.hasJockey&&!m.hasTrainer&&!m.hasOwner);
   else if(val==='trainer') f=allMatches.filter(m=>m.hasTrainer&&!m.hasJockey&&!m.hasOwner);
   else if(val==='owner') f=allMatches.filter(m=>m.hasOwner&&!m.hasJockey&&!m.hasTrainer);
